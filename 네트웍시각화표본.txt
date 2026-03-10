@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>네트워크 시각화: 테마 중첩 및 상관관계</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #ffffff; color: #1e293b; font-family: 'Pretendard', sans-serif; }
+        .chart-container { background: #ffffff; border-radius: 16px; position: relative; border: 1px solid #f1f5f9; }
+        .node circle { cursor: pointer; stroke-width: 2px; }
+        .link { stroke: #e2e8f0; stroke-opacity: 0.6; }
+        .label { font-size: 10px; fill: #475569; pointer-events: none; font-weight: 500; }
+        .theme-label { font-size: 13px; font-weight: 900; fill: #000000; pointer-events: none; text-shadow: 0 0 3px rgba(255,255,255,0.8); }
+        .tooltip { position: absolute; padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; pointer-events: none; opacity: 0; font-size: 13px; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-6">
+            <h1 class="text-2xl font-bold text-slate-900">네트워크 시각화: 테마 중첩 및 상관관계 (확장판)</h1>
+            <p class="text-slate-500 mt-1">종목이 여러 테마 사이에서 어떻게 당겨지는지 확인해 보세요.</p>
+        </header>
+
+        <div id="viz" class="chart-container w-full h-[650px]"></div>
+        <div id="tooltip" class="tooltip"></div>
+
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="p-5 bg-yellow-50 rounded-xl border border-yellow-200">
+                <h3 class="font-bold text-yellow-800 mb-2">형광 노랑 노드에 주목하세요!</h3>
+                <p class="text-sm text-yellow-900 leading-relaxed">
+                    형광 노랑 노드는 시장을 이끄는 <b>'핵심 테마(Hub)'</b>입니다. 이 테마들 주위로 종목들이 어떻게 군집을 이루는지 보세요. 특히 <b>두 개 이상의 테마에 선이 연결된 종목</b>은 두 테마의 중간 지점에 위치하며 가교 역할을 합니다.
+                </p>
+            </div>
+            <div class="p-5 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+                <h4 class="font-bold mb-2 text-slate-800">시각화 가이드</h4>
+                <ul class="space-y-1 text-slate-600">
+                    <li>• <span class="inline-block w-3 h-3 bg-[#ccff00] border border-gray-400 rounded-full"></span> <b>형광 노랑:</b> 핵심 테마 (Hub)</li>
+                    <li>• <span class="inline-block w-3 h-3 bg-red-400 rounded-full"></span> <b>빨강:</b> 방산/항공 | <span class="inline-block w-3 h-3 bg-amber-400 rounded-full"></span> <b>노랑:</b> 에너지/유가</li>
+                    <li>• <span class="inline-block w-3 h-3 bg-emerald-400 rounded-full"></span> <b>초록:</b> 건설/재건 | <span class="inline-block w-3 h-3 bg-cyan-400 rounded-full"></span> <b>하늘:</b> 물류/해운</li>
+                    <li>• <span class="inline-block w-3 h-3 bg-violet-400 rounded-full"></span> <b>보라:</b> 식량/비료 | <span class="inline-block w-3 h-3 bg-pink-400 rounded-full"></span> <b>분홍:</b> 보안/IT</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const width = document.getElementById('viz').clientWidth;
+        const height = 650;
+
+        // 테마 색상 (형광 노랑)
+        const THEME_COLOR = "#ccff00"; 
+
+        const data = {
+            nodes: [
+                // 핵심 테마 노드들 (Neon Yellow)
+                { id: "중동전쟁", type: "theme", r: 30, color: THEME_COLOR },
+                { id: "우주항공", type: "theme", r: 22, color: THEME_COLOR },
+                { id: "유가상승", type: "theme", r: 22, color: THEME_COLOR },
+                { id: "인프라재건", type: "theme", r: 22, color: THEME_COLOR },
+                { id: "식량위기", type: "theme", r: 20, color: THEME_COLOR },
+                { id: "사이버보안", type: "theme", r: 20, color: THEME_COLOR },
+
+                // 종목 노드들 (대폭 확장)
+                // 방산/항공 그룹
+                { id: "한화에어로", type: "stock", r: 14, color: "#f87171" }, 
+                { id: "LIG넥스원", type: "stock", r: 12, color: "#f87171" },
+                { id: "KAI", type: "stock", r: 12, color: "#f87171" },
+                { id: "현대로템", type: "stock", r: 11, color: "#f87171" },
+                { id: "풍산", type: "stock", r: 10, color: "#f87171" },
+
+                // 에너지 그룹
+                { id: "흥구석유", type: "stock", r: 9, color: "#fbbf24" },
+                { id: "S-Oil", type: "stock", r: 13, color: "#fbbf24" },
+                { id: "한국석유", type: "stock", r: 9, color: "#fbbf24" },
+                { id: "중앙에너비스", type: "stock", r: 8, color: "#fbbf24" },
+                { id: "SK이노베이션", type: "stock", r: 14, color: "#fbbf24" },
+
+                // 재건/건설 그룹
+                { id: "현대건설", type: "stock", r: 13, color: "#34d399" },
+                { id: "전진건설로봇", type: "stock", r: 10, color: "#34d399" },
+                { id: "희림", type: "stock", r: 8, color: "#34d399" },
+                { id: "데모", type: "stock", r: 8, color: "#34d399" },
+                { id: "삼성물산", type: "stock", r: 15, color: "#34d399" },
+
+                // 물류/해운 그룹
+                { id: "HMM", type: "stock", r: 13, color: "#22d3ee" },
+                { id: "대한항공", type: "stock", r: 13, color: "#22d3ee" },
+                { id: "팬오션", type: "stock", r: 11, color: "#22d3ee" },
+                { id: "태웅로직스", type: "stock", r: 8, color: "#22d3ee" },
+
+                // 식량/비료 그룹
+                { id: "한일사료", type: "stock", r: 9, color: "#a78bfa" },
+                { id: "미래생명자원", type: "stock", r: 8, color: "#a78bfa" },
+                { id: "남해화학", type: "stock", r: 10, color: "#a78bfa" },
+                { id: "조비", type: "stock", r: 8, color: "#a78bfa" },
+
+                // 보안 그룹
+                { id: "안랩", type: "stock", r: 11, color: "#f472b6" },
+                { id: "윈스", type: "stock", r: 9, color: "#f472b6" },
+                { id: "샌즈랩", type: "stock", r: 8, color: "#f472b6" }
+            ],
+            links: [
+                // 중동전쟁은 거의 모든 테마와 연결되는 중심점
+                { source: "중동전쟁", target: "한화에어로", value: 8 },
+                { source: "중동전쟁", target: "LIG넥스원", value: 7 },
+                { source: "중동전쟁", target: "현대로템", value: 6 },
+                { source: "중동전쟁", target: "흥구석유", value: 10 },
+                { source: "중동전쟁", target: "한국석유", value: 9 },
+                { source: "중동전쟁", target: "HMM", value: 9 },
+                { source: "중동전쟁", target: "대한항공", value: 5 }, // 유가부담 vs 전쟁이슈
+                { source: "중동전쟁", target: "현대건설", value: 5 }, // 공사차질 리스크
+                { source: "중동전쟁", target: "사이버보안", value: 4 }, // 사이버전 테마
+
+                // 다중 연결 포인트 (네트워크 시각화의 핵심!)
+                { source: "우주항공", target: "한화에어로", value: 9 }, // 방산 + 우주
+                { source: "우주항공", target: "KAI", value: 10 },      // 방산 + 우주
+                { source: "우주항공", target: "LIG넥스원", value: 4 }, 
+                
+                { source: "유가상승", target: "흥구석유", value: 9 },
+                { source: "유가상승", target: "S-Oil", value: 10 },
+                { source: "유가상승", target: "SK이노베이션", value: 8 },
+                { source: "유가상승", target: "한국석유", value: 8 },
+                { source: "유가상승", target: "대한항공", value: 3 }, // 부정적 연결(멀어짐 효과)
+
+                { source: "인프라재건", target: "현대건설", value: 9 },
+                { source: "인프라재건", target: "전진건설로봇", value: 8 },
+                { source: "인프라재건", target: "희림", value: 7 },
+                { source: "인프라재건", target: "데모", value: 9 },
+                { source: "인프라재건", target: "삼성물산", value: 7 },
+
+                { source: "식량위기", target: "한일사료", value: 9 },
+                { source: "식량위기", target: "미래생명자원", value: 8 },
+                { source: "식량위기", target: "남해화학", value: 7 },
+                { source: "식량위기", target: "조비", value: 7 },
+                { source: "식량위기", target: "중동전쟁", value: 5 }, // 전쟁으로 인한 곡물가 상승
+
+                { source: "사이버보안", target: "안랩", value: 10 },
+                { source: "사이버보안", target: "윈스", value: 8 },
+                { source: "사이버보안", target: "샌즈랩", value: 9 }
+            ]
+        };
+
+        const svg = d3.select("#viz").append("svg")
+            .attr("width", width).attr("height", height);
+
+        // 물리 엔진 설정
+        const simulation = d3.forceSimulation(data.nodes)
+            .force("link", d3.forceLink(data.links).id(d => d.id).distance(120))
+            .force("charge", d3.forceManyBody().strength(-450)) // 반발력 강화
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(d => d.r + 10));
+
+        // 연결선
+        const link = svg.append("g")
+            .selectAll("line")
+            .data(data.links)
+            .join("line")
+            .attr("class", "link")
+            .attr("stroke-width", d => d.value / 2.5);
+
+        // 노드 그룹
+        const node = svg.append("g")
+            .selectAll("g")
+            .data(data.nodes)
+            .join("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        // 노드 원형
+        node.append("circle")
+            .attr("r", d => d.r)
+            .attr("fill", d => d.color)
+            .attr("stroke", d => d.type === 'theme' ? "#000" : "#fff")
+            .attr("stroke-width", d => d.type === 'theme' ? 1.5 : 2)
+            .on("mouseover", (e, d) => {
+                d3.select("#tooltip").style("opacity", 1).html(`
+                    <div class="font-bold text-lg">${d.id}</div>
+                    <div class="text-xs text-slate-500">${d.type === 'theme' ? '섹터 테마' : '개별 종목'}</div>
+                `);
+            })
+            .on("mousemove", (e) => {
+                d3.select("#tooltip").style("left", (e.pageX + 15) + "px").style("top", (e.pageY - 15) + "px");
+            })
+            .on("mouseout", () => d3.select("#tooltip").style("opacity", 0));
+
+        // 텍스트 라벨
+        node.append("text")
+            .attr("class", d => d.type === 'theme' ? "theme-label" : "label")
+            .attr("dy", d => d.type === 'theme' ? 4 : d.r + 14)
+            .attr("text-anchor", "middle")
+            .text(d => d.id);
+
+        // 틱(Tick) 애니메이션
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        // 드래그 제어 함수
+        function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+        function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+
+        // 반응형 처리
+        window.addEventListener("resize", () => {
+            const newWidth = document.getElementById('viz').clientWidth;
+            svg.attr("width", newWidth);
+            simulation.force("center", d3.forceCenter(newWidth / 2, height / 2)).alpha(0.3).restart();
+        });
+    </script>
+</body>
+</html>

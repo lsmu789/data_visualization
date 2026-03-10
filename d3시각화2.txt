@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중동 전쟁 테마주 시각화 분석 v2</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f8fafc; color: #1e293b; font-family: 'Pretendard', sans-serif; }
+        .chart-container { background: white; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #e2e8f0; }
+        .node-label { font-size: 11px; fill: #334155; pointer-events: none; }
+        .tooltip { position: absolute; padding: 8px; background: rgba(255,255,255,0.95); color: #1e293b; border: 1px solid #cbd5e1; border-radius: 4px; pointer-events: none; opacity: 0; font-size: 12px; z-index: 50; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .tab-btn { background-color: white; color: #64748b; border: 1px solid #e2e8f0; }
+        .tab-btn.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        .sankey-node rect { fill-opacity: 0.8; }
+        .sankey-link { fill: none; stroke-opacity: 0.2; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-slate-800 mb-2">Middle East War Theme Visualization v2</h1>
+            <p class="text-slate-500">D3.js 중급 활용: Sankey, Sunburst, Chord 모델 학습용</p>
+        </header>
+
+        <!-- 컨트롤 패널 -->
+        <div class="flex flex-wrap justify-center gap-4 mb-6">
+            <button onclick="switchChart('sankey')" id="btn-sankey" class="tab-btn active px-6 py-2 rounded-full hover:border-blue-500 transition">생키 (Sankey)</button>
+            <button onclick="switchChart('sunburst')" id="btn-sunburst" class="tab-btn px-6 py-2 rounded-full hover:border-blue-500 transition">썬버스트 (Sunburst)</button>
+            <button onclick="switchChart('chord')" id="btn-chord" class="tab-btn px-6 py-2 rounded-full hover:border-blue-500 transition">코드 (Chord)</button>
+        </div>
+
+        <!-- 차트 영역 -->
+        <div id="viz" class="chart-container w-full h-[600px] shadow-lg"></div>
+        <div id="tooltip" class="tooltip"></div>
+
+        <!-- 하단 학습 가이드 -->
+        <footer class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="p-5 bg-white rounded-lg border border-slate-200 shadow-sm">
+                <h3 class="font-bold text-blue-600 mb-2">1. Sankey Diagram</h3>
+                <p class="text-sm text-slate-600 mb-2">데이터의 <b>'흐름'</b>을 파악하는 데 최적입니다.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li><b>장점:</b> 테마에서 종목으로 이어지는 연결 강도를 한눈에 파악.</li>
+                    <li><b>단점:</b> 노드가 많아지면 선이 꼬여 가독성이 급격히 하락.</li>
+                </ul>
+            </div>
+            <div class="p-5 bg-white rounded-lg border border-slate-200 shadow-sm">
+                <h3 class="font-bold text-orange-600 mb-2">2. Sunburst Chart</h3>
+                <p class="text-sm text-slate-600 mb-2"><b>'계층 구조'</b>를 원형으로 보여줍니다.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li><b>장점:</b> 트리맵보다 계층의 깊이를 탐색하기 시각적으로 명확함.</li>
+                    <li><b>단점:</b> 바깥쪽으로 갈수록 영역이 넓어져 비중 왜곡 가능성 있음.</li>
+                </ul>
+            </div>
+            <div class="p-5 bg-white rounded-lg border border-slate-200 shadow-sm">
+                <h3 class="font-bold text-teal-600 mb-2">3. Chord Diagram</h3>
+                <p class="text-sm text-slate-600 mb-2">데이터 간의 <b>'상호 연결성'</b>을 강조합니다.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li><b>장점:</b> 다대다(N:M) 관계 시각화에 매우 유리(종목 간 상관관계 등).</li>
+                    <li><b>단점:</b> 구현 난이도가 높고 수치가 적으면 오히려 난해함.</li>
+                </ul>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // 데이터 정의
+        const themeData = {
+            name: "중동전쟁",
+            children: [
+                { name: "방산", color: "#ef4444", children: [{name: "LIG넥스원"}, {name: "한화에어로"}, {name: "풍산"}] },
+                { name: "석유", color: "#f59e0b", children: [{name: "흥구석유"}, {name: "중앙에너비스"}, {name: "한국석유"}] },
+                { name: "재건", color: "#10b981", children: [{name: "전진건설"}, {name: "SG"}, {name: "남광토건"}] },
+                { name: "신재생", color: "#3b82f6", children: [{name: "한화솔루션"}, {name: "OCI"}, {name: "씨에스윈드"}] },
+                { name: "식품", color: "#8b5cf6", children: [{name: "한일사료"}, {name: "팜스토리"}, {name: "미래생명"}] },
+                { name: "해운", color: "#06b6d4", children: [{name: "HMM"}, {name: "팬오션"}] },
+                { name: "보안", color: "#ec4899", children: [{name: "안랩"}, {name: "윈스"}] },
+                { name: "원자재", color: "#eab308", children: [{name: "엘켐텍"}, {name: "포스코엠텍"}] }
+            ]
+        };
+
+        const width = document.getElementById('viz').clientWidth;
+        const height = 600;
+        const tooltip = d3.select("#tooltip");
+
+        function clearViz() {
+            d3.select("#viz").selectAll("*").remove();
+            d3.selectAll(".tab-btn").classed("active", false);
+        }
+
+        // --- 1. Sankey Diagram ---
+        function renderSankey() {
+            clearViz();
+            d3.select("#btn-sankey").classed("active", true);
+            const svg = d3.select("#viz").append("svg").attr("width", width).attr("height", height).append("g").attr("transform", "translate(50,50)");
+
+            const sankey = d3.sankey()
+                .nodeWidth(15)
+                .nodePadding(10)
+                .extent([[0, 0], [width - 100, height - 100]]);
+
+            let nodes = [{ name: "중동전쟁" }];
+            let links = [];
+
+            themeData.children.forEach((theme, i) => {
+                nodes.push({ name: theme.name, color: theme.color });
+                links.push({ source: 0, target: nodes.length - 1, value: theme.children.length });
+                let themeIdx = nodes.length - 1;
+                theme.children.forEach(stock => {
+                    nodes.push({ name: stock.name, color: theme.color });
+                    links.push({ source: themeIdx, target: nodes.length - 1, value: 1 });
+                });
+            });
+
+            const { nodes: skNodes, links: skLinks } = sankey({
+                nodes: nodes.map(d => Object.assign({}, d)),
+                links: links.map(d => Object.assign({}, d))
+            });
+
+            svg.append("g")
+                .selectAll("rect")
+                .data(skNodes)
+                .join("rect")
+                .attr("x", d => d.x0)
+                .attr("y", d => d.y0)
+                .attr("height", d => d.y1 - d.y0)
+                .attr("width", d => d.x1 - d.x0)
+                .attr("fill", d => d.color || "#64748b")
+                .attr("rx", 2)
+                .on("mouseover", (e, d) => {
+                    tooltip.style("opacity", 1).html(`<strong>${d.name}</strong>`);
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+
+            svg.append("g")
+                .selectAll("path")
+                .data(skLinks)
+                .join("path")
+                .attr("class", "sankey-link")
+                .attr("d", d3.sankeyLinkHorizontal())
+                .attr("stroke", d => d.source.color || "#cbd5e1")
+                .attr("stroke-width", d => Math.max(1, d.width));
+
+            svg.append("g")
+                .selectAll("text")
+                .data(skNodes)
+                .join("text")
+                .attr("x", d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+                .attr("y", d => (d.y1 + d.y0) / 2)
+                .attr("dy", "0.35em")
+                .attr("text-anchor", d => d.x0 < width / 2 ? "start" : "end")
+                .attr("class", "node-label")
+                .text(d => d.name);
+        }
+
+        // --- 2. Sunburst Chart ---
+        function renderSunburst() {
+            clearViz();
+            d3.select("#btn-sunburst").classed("active", true);
+            const radius = Math.min(width, height) / 2;
+            const svg = d3.select("#viz").append("svg")
+                .attr("width", width).attr("height", height)
+                .append("g").attr("transform", `translate(${width/2},${height/2})`);
+
+            const root = d3.hierarchy(themeData)
+                .sum(d => 1)
+                .sort((a, b) => b.value - a.value);
+
+            const partition = d3.partition().size([2 * Math.PI, radius]);
+            partition(root);
+
+            const arc = d3.arc()
+                .startAngle(d => d.x0)
+                .endAngle(d => d.x1)
+                .innerRadius(d => d.y0)
+                .outerRadius(d => d.y1);
+
+            svg.selectAll("path")
+                .data(root.descendants())
+                .join("path")
+                .attr("d", arc)
+                .attr("fill", d => {
+                    if (d.depth === 0) return "#f1f5f9";
+                    if (d.depth === 1) return d.data.color;
+                    return d.parent.data.color;
+                })
+                .attr("fill-opacity", d => d.depth === 2 ? 0.6 : 1)
+                .attr("stroke", "white")
+                .on("mouseover", (e, d) => {
+                    tooltip.style("opacity", 1).html(`<strong>${d.data.name}</strong>`);
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+
+            svg.selectAll("text")
+                .data(root.descendants().filter(d => d.depth > 0 && (d.x1 - d.x0) > 0.1))
+                .join("text")
+                .attr("transform", function(d) {
+                    const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+                    const y = (d.y0 + d.y1) / 2;
+                    return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+                })
+                .attr("dy", "0.35em")
+                .attr("text-anchor", "middle")
+                .style("font-size", "9px")
+                .text(d => d.data.name);
+        }
+
+        // --- 3. Chord Diagram (Simplified) ---
+        function renderChord() {
+            clearViz();
+            d3.select("#btn-chord").classed("active", true);
+            const outerRadius = Math.min(width, height) * 0.5 - 40;
+            const innerRadius = outerRadius - 30;
+
+            const svg = d3.select("#viz").append("svg")
+                .attr("width", width).attr("height", height)
+                .append("g").attr("transform", `translate(${width/2},${height/2})`);
+
+            // 테마 이름 추출
+            const names = themeData.children.map(d => d.name);
+            const matrix = Array.from({length: names.length}, () => Array(names.length).fill(0));
+            
+            // 학습용 임의 연결 데이터 (테마간의 상관관계 가정)
+            themeData.children.forEach((d, i) => {
+                matrix[i][i] = 5; // 자기 자신 비중
+                if(i < names.length - 1) matrix[i][i+1] = 2; // 인접 테마 연관성
+                if(i > 0) matrix[i][i-1] = 2;
+            });
+
+            const chord = d3.chord().padAngle(0.05).sortSubgroups(d3.descending)(matrix);
+
+            const arc = d3.arc().innerRadius(innerRadius).outerRadius(outerRadius);
+            const ribbon = d3.ribbon().radius(innerRadius);
+
+            const group = svg.append("g")
+                .selectAll("g")
+                .data(chord.groups)
+                .join("g");
+
+            group.append("path")
+                .attr("fill", d => themeData.children[d.index].color)
+                .attr("d", arc);
+
+            group.append("text")
+                .each(d => { d.angle = (d.startAngle + d.endAngle) / 2; })
+                .attr("dy", "0.35em")
+                .attr("transform", d => `
+                    rotate(${(d.angle * 180 / Math.PI - 90)})
+                    translate(${outerRadius + 10})
+                    ${d.angle > Math.PI ? "rotate(180)" : ""}
+                `)
+                .attr("text-anchor", d => d.angle > Math.PI ? "end" : "start")
+                .style("font-size", "12px")
+                .text(d => names[d.index]);
+
+            svg.append("g")
+                .attr("fill-opacity", 0.67)
+                .selectAll("path")
+                .data(chord)
+                .join("path")
+                .attr("d", ribbon)
+                .attr("fill", d => themeData.children[d.source.index].color)
+                .attr("stroke", d => d3.rgb(themeData.children[d.source.index].color).darker());
+        }
+
+        function switchChart(type) {
+            if (type === 'sankey') renderSankey();
+            else if (type === 'sunburst') renderSunburst();
+            else if (type === 'chord') renderChord();
+        }
+
+        window.onload = renderSankey;
+        window.onresize = () => location.reload();
+    </script>
+</body>
+</html>

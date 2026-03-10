@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HUG x ASTO | 청년주택 STO 플랫폼</title>
+    <!-- 외부 라이브러리: GSAP (애니메이션), D3.js (시각화) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0a0c;
+            --primary-color: #007aff;
+            --secondary-color: #5ac8fa;
+            --accent-color: #ff2d55;
+            --text-main: #ffffff;
+            --text-sub: #a1a1a6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Full Page Sections */
+        section {
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            position: relative;
+            text-align: center;
+        }
+
+        /* Typography */
+        h1 { font-size: 4rem; font-weight: 900; margin-bottom: 1rem; letter-spacing: -2px; }
+        h2 { font-size: 3rem; font-weight: 700; margin-bottom: 1.5rem; }
+        p { font-size: 1.25rem; color: var(--text-sub); max-width: 800px; margin-bottom: 2rem; }
+        .highlight { color: var(--primary-color); }
+
+        /* Section 1: Hero */
+        #hero {
+            background: radial-gradient(circle at center, #1c1c1e 0%, #0a0a0c 100%);
+        }
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            animation: bounce 2s infinite;
+            font-size: 0.9rem;
+            color: var(--text-sub);
+        }
+
+        /* Section 3: Partnership */
+        .partner-box {
+            display: flex;
+            gap: 50px;
+            align-items: center;
+            margin-top: 30px;
+        }
+        .logo-card {
+            background: #1c1c1e;
+            padding: 30px 50px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* Section 4: Chart */
+        #chart-container {
+            width: 500px;
+            height: 500px;
+            position: relative;
+        }
+        .chart-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .chart-label .value { font-size: 3rem; font-weight: 900; }
+
+        /* Animations */
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
+        }
+
+        /* Custom UI */
+        .cta-button {
+            padding: 15px 40px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: transform 0.3s ease;
+        }
+        .cta-button:hover { transform: scale(1.05); }
+
+    </style>
+</head>
+<body>
+
+    <!-- Section 1: Hero -->
+    <section id="hero">
+        <h1 class="reveal">청년의 꿈,<br><span class="highlight">조각 투자</span>로 집을 짓다</h1>
+        <p class="reveal">주거 사각지대에 놓인 청년들을 위한 HUG x ASTO의 혁신적인 금융 솔루션</p>
+        <div class="scroll-indicator">스크롤하여 시작하기</div>
+    </section>
+
+    <!-- Section 2: Problem & Solution -->
+    <section id="problem">
+        <h2 class="reveal">높아진 주거 장벽,<br>더 이상 꿈만 꿀 수 없습니다.</h2>
+        <p class="reveal">ASTO는 블록체인 기반 STO(토큰증권) 기술을 통해 대규모 자본 없이도 누구나 주택 지분을 소유하고, 청년들에게는 안정적인 주거 공간을 제공합니다.</p>
+    </section>
+
+    <!-- Section 3: Partnership -->
+    <section id="partnership">
+        <h2 class="reveal">공공과 기술의 만남</h2>
+        <div class="partner-box reveal">
+            <div class="logo-card" style="color: #005aab;">HUG</div>
+            <div style="font-size: 2rem; color: #555;">×</div>
+            <div class="logo-card" style="color: #00d4ff;">ASTO</div>
+        </div>
+        <p class="reveal" style="margin-top: 2rem;">주택도시보증공사의 <span class="highlight">신뢰</span>와 ASTO의 <span class="highlight">기술력</span>이 결합된 주거 안정 거버넌스</p>
+    </section>
+
+    <!-- Section 4: Financial Model -->
+    <section id="model">
+        <h2 class="reveal">40 : 60 핵심 금융 구조</h2>
+        <div id="chart-container" class="reveal">
+            <svg id="pie-chart"></svg>
+            <div class="chart-label">
+                <div class="value">40 : 60</div>
+                <div style="color: var(--text-sub);">Equity : STO</div>
+            </div>
+        </div>
+        <p class="reveal">자기자본 40%와 토큰증권 60% 발행을 통해<br>사업의 안정성과 투자 유동성을 동시에 확보합니다.</p>
+    </section>
+
+    <!-- Section 5: Call to Action -->
+    <section id="cta">
+        <h1 class="reveal">혁신에 참여하세요</h1>
+        <p class="reveal">ASTO는 청년의 미래와 투자자의 가치를 연결합니다.</p>
+        <a href="#" class="cta-button reveal">프로젝트 상세 제안서 받기</a>
+    </section>
+
+    <script>
+        // GSAP 초기화
+        gsap.registerPlugin(ScrollTrigger);
+
+        // 요소 나타나는 애니메이션 (Reveal)
+        gsap.utils.toArray(".reveal").forEach((el) => {
+            gsap.from(el, {
+                scrollTrigger: {
+                    trigger: el,
+                    start: "top 85%",
+                    toggleActions: "play none none reverse"
+                },
+                y: 50,
+                opacity: 0,
+                duration: 1,
+                ease: "power3.out"
+            });
+        });
+
+        // D3.js 40:60 차트 생성
+        const data = [
+            { name: "자기자본 (Equity)", value: 40, color: "#007aff" },
+            { name: "토큰증권 (STO)", value: 60, color: "#32d74b" }
+        ];
+
+        const width = 500, height = 500, margin = 20;
+        const radius = Math.min(width, height) / 2 - margin;
+
+        const svg = d3.select("#pie-chart")
+            .attr("width", width)
+            .attr("height", height)
+            .append("g")
+            .attr("transform", `translate(${width / 2}, ${height / 2})`);
+
+        const pie = d3.pie().value(d => d.value).sort(null);
+        const arc = d3.arc().innerRadius(radius * 0.7).outerRadius(radius);
+
+        const path = svg.selectAll("path")
+            .data(pie(data))
+            .enter()
+            .append("path")
+            .attr("d", arc)
+            .attr("fill", d => d.data.color)
+            .attr("stroke", "#0a0a0c")
+            .style("stroke-width", "5px")
+            .style("opacity", 0.8)
+            .each(function(d) { this._current = d; });
+
+        // 차트 애니메이션
+        ScrollTrigger.create({
+            trigger: "#model",
+            start: "top center",
+            onEnter: () => {
+                path.transition().duration(1500)
+                    .attrTween("d", function(d) {
+                        const interpolate = d3.interpolate({startAngle: 0, endAngle: 0}, d);
+                        return function(t) { return arc(interpolate(t)); };
+                    });
+            }
+        });
+
+    </script>
+</body>
+</html>

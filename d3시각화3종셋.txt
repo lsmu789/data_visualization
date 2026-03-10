@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중동 전쟁 테마주 시각화 분석</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Pretendard', sans-serif; }
+        .chart-container { background: #1e293b; border-radius: 12px; overflow: hidden; position: relative; }
+        .node-label { font-size: 11px; fill: #f1f5f9; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+        .tooltip { position: absolute; padding: 8px; background: rgba(0,0,0,0.8); color: white; border-radius: 4px; pointer-events: none; opacity: 0; font-size: 12px; z-index: 50; }
+        .tab-btn.active { background-color: #3b82f6; color: white; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-blue-400 mb-2">Middle East War Theme Analysis</h1>
+            <p class="text-slate-400">D3.js를 활용한 3가지 테마주 시각화 모델 비교</p>
+        </header>
+
+        <!-- 컨트롤 패널 -->
+        <div class="flex flex-wrap justify-center gap-4 mb-6">
+            <button onclick="switchChart('network')" id="btn-network" class="tab-btn active px-6 py-2 rounded-full border border-blue-500 hover:bg-blue-600 transition">네트워크 (Network)</button>
+            <button onclick="switchChart('treemap')" id="btn-treemap" class="tab-btn px-6 py-2 rounded-full border border-blue-500 hover:bg-blue-600 transition">트리맵 (Treemap)</button>
+            <button onclick="switchChart('pack')" id="btn-pack" class="tab-btn px-6 py-2 rounded-full border border-blue-500 hover:bg-blue-600 transition">원형 패킹 (Circle Pack)</button>
+        </div>
+
+        <!-- 차트 영역 -->
+        <div id="viz" class="chart-container w-full h-[600px] shadow-2xl border border-slate-700"></div>
+        <div id="tooltip" class="tooltip"></div>
+
+        <!-- 하단 설명 -->
+        <footer class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="p-4 bg-slate-800 rounded-lg border border-slate-700">
+                <h3 class="font-bold text-blue-300 mb-2">1. Network Graph</h3>
+                <p class="text-sm text-slate-400">종목과 테마 간의 '관계'에 집중합니다. 향후 2,700개 종목 확장 시 테마 간의 중첩 연결을 보여주는 핵심 도구입니다.</p>
+            </div>
+            <div class="p-4 bg-slate-800 rounded-lg border border-slate-700">
+                <h3 class="font-bold text-green-300 mb-2">2. Treemap</h3>
+                <p class="text-sm text-slate-400">'비중'과 '계층'에 집중합니다. 전체 시장 대비 특정 테마의 규모를 면적으로 즉각 파악하기 좋습니다.</p>
+            </div>
+            <div class="p-4 bg-slate-800 rounded-lg border border-slate-700">
+                <h3 class="font-bold text-purple-300 mb-2">3. Circle Packing</h3>
+                <p class="text-sm text-slate-400">'군집'과 '가독성'에 집중합니다. 테마별 종목 그룹핑을 가장 미적으로 보여주며 모바일 환경에 유리합니다.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // 1. 데이터 정의 (제공해주신 표 내용)
+        const themeData = {
+            name: "중동전쟁 테마",
+            children: [
+                { name: "방산", color: "#ef4444", reason: "국방 예산 확대, 무기 수요 증가", children: [{name: "LIG넥스원"}, {name: "한화에어로스페이스"}, {name: "풍산"}] },
+                { name: "석유/에너지", color: "#f59e0b", reason: "유가 상승 가능성, 수익성 개선", children: [{name: "흥구석유"}, {name: "중앙에너비스"}, {name: "한국석유"}] },
+                { name: "재건", color: "#10b981", reason: "인프라 복구 수요 증가", children: [{name: "전진건설로봇"}, {name: "SG"}, {name: "남광토건"}] },
+                { name: "신재생에너지", color: "#3b82f6", reason: "에너지 안보 강화", children: [{name: "한화솔루션"}, {name: "OCI"}, {name: "씨에스윈드"}] },
+                { name: "식품", color: "#8b5cf6", reason: "공급망 차질, 농산물가 상승", children: [{name: "한일사료"}, {name: "팜스토리"}, {name: "미래생명자원"}] },
+                { name: "해운/물류", color: "#06b6d4", reason: "운송 경로 차단, 운임 상승", children: [{name: "HMM"}, {name: "팬오션"}] },
+                { name: "사이버보안", color: "#ec4899", reason: "국가 차원 보안 강화", children: [{name: "안랩"}, {name: "윈스"}, {name: "싸이버원"}] },
+                { name: "금/원자재", color: "#eab308", reason: "안전자산 선호", children: [{name: "엘켐텍"}, {name: "포스코엠텍"}] }
+            ]
+        };
+
+        const width = document.getElementById('viz').clientWidth;
+        const height = 600;
+        const tooltip = d3.select("#tooltip");
+
+        function clearViz() {
+            d3.select("#viz").selectAll("*").remove();
+            d3.selectAll(".tab-btn").classed("active", false);
+        }
+
+        // --- 1. Network Graph ---
+        function renderNetwork() {
+            clearViz();
+            d3.select("#btn-network").classed("active", true);
+            const svg = d3.select("#viz").append("svg").attr("width", width).attr("height", height);
+            
+            const nodes = [{ id: "중동전쟁", group: 0, radius: 25 }];
+            const links = [];
+
+            themeData.children.forEach(theme => {
+                nodes.push({ id: theme.name, group: 1, radius: 18, color: theme.color, reason: theme.reason });
+                links.push({ source: "중동전쟁", target: theme.name });
+                theme.children.forEach(stock => {
+                    nodes.push({ id: stock.name, group: 2, radius: 10, color: theme.color });
+                    links.push({ source: theme.name, target: stock.name });
+                });
+            });
+
+            const simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id(d => d.id).distance(70))
+                .force("charge", d3.forceManyBody().strength(-200))
+                .force("center", d3.forceCenter(width / 2, height / 2));
+
+            const link = svg.append("g")
+                .selectAll("line")
+                .data(links)
+                .join("line")
+                .attr("stroke", "#475569")
+                .attr("stroke-opacity", 0.6);
+
+            const node = svg.append("g")
+                .selectAll("circle")
+                .data(nodes)
+                .join("circle")
+                .attr("r", d => d.radius)
+                .attr("fill", d => d.color || "#3b82f6")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1.5)
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended))
+                .on("mouseover", (e, d) => {
+                    tooltip.style("opacity", 1).html(`<strong>${d.id}</strong><br>${d.reason || ""}`);
+                })
+                .on("mousemove", (e) => {
+                    tooltip.style("left", (e.pageX + 10) + "px").style("top", (e.pageY - 20) + "px");
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+
+            const label = svg.append("g")
+                .selectAll("text")
+                .data(nodes)
+                .join("text")
+                .attr("class", "node-label")
+                .attr("text-anchor", "middle")
+                .attr("dy", d => d.radius + 12)
+                .text(d => d.id);
+
+            simulation.on("tick", () => {
+                link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+                node.attr("cx", d => d.x).attr("cy", d => d.y);
+                label.attr("x", d => d.x).attr("y", d => d.y);
+            });
+
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+        }
+
+        // --- 2. Treemap ---
+        function renderTreemap() {
+            clearViz();
+            d3.select("#btn-treemap").classed("active", true);
+            const svg = d3.select("#viz").append("svg").attr("width", width).attr("height", height);
+
+            const root = d3.hierarchy(themeData)
+                .sum(d => 1) // 균등 분배 (데이터에 시총이 있다면 시총값 적용)
+                .sort((a, b) => b.value - a.value);
+
+            d3.treemap().size([width, height]).paddingInner(4).paddingOuter(10)(root);
+
+            const leaf = svg.selectAll("g")
+                .data(root.leaves())
+                .join("g")
+                .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+            leaf.append("rect")
+                .attr("width", d => d.x1 - d.x0)
+                .attr("height", d => d.y1 - d.y0)
+                .attr("fill", d => d.parent.data.color)
+                .attr("rx", 4)
+                .on("mouseover", (e, d) => {
+                    tooltip.style("opacity", 1).html(`<strong>${d.data.name}</strong><br>섹터: ${d.parent.data.name}`);
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+
+            leaf.append("text")
+                .attr("class", "node-label")
+                .attr("x", 5)
+                .attr("y", 15)
+                .text(d => d.data.name);
+        }
+
+        // --- 3. Circle Packing ---
+        function renderPack() {
+            clearViz();
+            d3.select("#btn-pack").classed("active", true);
+            const svg = d3.select("#viz").append("svg").attr("width", width).attr("height", height);
+
+            const root = d3.hierarchy(themeData)
+                .sum(d => 1)
+                .sort((a, b) => b.value - a.value);
+
+            d3.pack().size([width, height]).padding(15)(root);
+
+            const node = svg.selectAll("g")
+                .data(root.descendants())
+                .join("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            node.append("circle")
+                .attr("r", d => d.r)
+                .attr("fill", d => d.depth === 0 ? "#1e293b" : (d.children ? d.data.color : d.parent.data.color))
+                .attr("fill-opacity", d => d.children ? 0.3 : 0.9)
+                .attr("stroke", d => d.children ? d.data.color || "#fff" : "none")
+                .attr("stroke-width", 2)
+                .on("mouseover", (e, d) => {
+                    if(!d.children) tooltip.style("opacity", 1).html(`<strong>${d.data.name}</strong>`);
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+
+            node.filter(d => d.r > 20).append("text")
+                .attr("class", "node-label")
+                .attr("text-anchor", "middle")
+                .attr("dy", d => d.children ? -d.r - 5 : 4)
+                .text(d => d.data.name);
+        }
+
+        function switchChart(type) {
+            if (type === 'network') renderNetwork();
+            else if (type === 'treemap') renderTreemap();
+            else if (type === 'pack') renderPack();
+        }
+
+        // 초기 실행
+        window.onload = renderNetwork;
+    </script>
+</body>
+</html>

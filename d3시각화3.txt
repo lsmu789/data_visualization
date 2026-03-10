@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중동 전쟁 테마주 시각화 분석 v3</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f8fafc; color: #1e293b; font-family: 'Pretendard', sans-serif; }
+        .chart-container { background: white; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #e2e8f0; }
+        .tooltip { position: absolute; padding: 10px; background: rgba(255,255,255,0.98); color: #1e293b; border: 1px solid #cbd5e1; border-radius: 6px; pointer-events: none; opacity: 0; font-size: 13px; z-index: 50; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .tab-btn { background-color: white; color: #64748b; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .tab-btn.active { background-color: #0f172a; color: white; border-color: #0f172a; }
+        .axis-label { font-size: 11px; fill: #94a3b8; }
+        .grid line { stroke: #e2e8f0; stroke-opacity: 0.7; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">Theme Stock Visualization v3</h1>
+            <p class="text-slate-500">D3.js 고급 활용: Bubble, Radar, Radial Bar 모델 학습용</p>
+        </header>
+
+        <!-- 컨트롤 패널 -->
+        <div class="flex flex-wrap justify-center gap-4 mb-6">
+            <button onclick="switchChart('bubble')" id="btn-bubble" class="tab-btn active px-6 py-2 rounded-full hover:shadow-md">버블 (Bubble)</button>
+            <button onclick="switchChart('radar')" id="btn-radar" class="tab-btn px-6 py-2 rounded-full hover:shadow-md">레이더 (Radar)</button>
+            <button onclick="switchChart('radial')" id="btn-radial" class="tab-btn px-6 py-2 rounded-full hover:shadow-md">래디얼 바 (Radial Bar)</button>
+        </div>
+
+        <!-- 차트 영역 -->
+        <div id="viz" class="chart-container w-full h-[600px] shadow-sm flex items-center justify-center"></div>
+        <div id="tooltip" class="tooltip"></div>
+
+        <!-- 하단 학습 가이드 -->
+        <footer class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                <h3 class="font-bold text-indigo-600 mb-2">1. Packed Bubble Chart</h3>
+                <p class="text-sm text-slate-600 mb-2">비계층적 <b>'군집 데이터'</b> 시각화에 좋습니다.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li><b>장점:</b> 수백 개의 종목을 크기와 색상으로 한 화면에 표현 가능.</li>
+                    <li><b>단점:</b> 정확한 수치 비교보다는 전체적인 분포 파악용임.</li>
+                </ul>
+            </div>
+            <div class="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                <h3 class="font-bold text-rose-600 mb-2">2. Radar (Spider) Chart</h3>
+                <p class="text-sm text-slate-600 mb-2">다변량 데이터의 <b>'균형'</b>을 비교합니다.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li><b>장점:</b> 테마별 강점(수익성, 성장성, 안정성 등)을 비교 분석하기 최적.</li>
+                    <li><b>단점:</b> 비교 대상이 너무 많으면 선이 겹쳐 알아보기 힘듦.</li>
+                </ul>
+            </div>
+            <div class="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                <h3 class="font-bold text-emerald-600 mb-2">3. Radial Bar Chart</h3>
+                <p class="text-sm text-slate-600 mb-2"><b>'순위와 진행도'</b>를 미려하게 표현합니다.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li><b>장점:</b> 일반 바 차트보다 공간 효율적이며 시각적 주목도가 높음.</li>
+                    <li><b>단점:</b> 바깥쪽 바가 안쪽보다 길어 보여 수치 오해를 줄 수 있음.</li>
+                </ul>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // 학습용 확장 데이터 (임의의 수치 포함: 비중, 강도 등)
+        const rawData = [
+            { name: "방산", color: "#ef4444", value: 85, stocks: ["LIG넥스원", "한화에어로", "풍산"] },
+            { name: "석유", color: "#f59e0b", value: 92, stocks: ["흥구석유", "중앙에너비스", "한국석유"] },
+            { name: "재건", color: "#10b981", value: 65, stocks: ["전진건설", "SG", "남광토건"] },
+            { name: "신재생", color: "#3b82f6", value: 55, stocks: ["한화솔루션", "OCI", "씨에스윈드"] },
+            { name: "식품", color: "#8b5cf6", value: 78, stocks: ["한일사료", "팜스토리", "미래생명"] },
+            { name: "해운", color: "#06b6d4", value: 72, stocks: ["HMM", "팬오션"] },
+            { name: "보안", color: "#ec4899", value: 45, stocks: ["안랩", "윈스"] },
+            { name: "원자재", color: "#eab308", value: 68, stocks: ["엘켐텍", "포스코엠텍"] }
+        ];
+
+        const width = document.getElementById('viz').clientWidth;
+        const height = 600;
+        const tooltip = d3.select("#tooltip");
+
+        function clearViz() {
+            d3.select("#viz").selectAll("*").remove();
+            d3.selectAll(".tab-btn").classed("active", false);
+        }
+
+        // --- 1. Packed Bubble Chart ---
+        function renderBubble() {
+            clearViz();
+            d3.select("#btn-bubble").classed("active", true);
+            const svg = d3.select("#viz").append("svg").attr("width", width).attr("height", height);
+
+            const bubbleData = [];
+            rawData.forEach(d => {
+                d.stocks.forEach(s => {
+                    bubbleData.push({ name: s, parent: d.name, color: d.color, value: Math.random() * 50 + 20 });
+                });
+            });
+
+            const root = d3.hierarchy({ children: bubbleData }).sum(d => d.value);
+            const pack = d3.pack().size([width - 40, height - 40]).padding(5);
+            const nodes = pack(root).leaves();
+
+            const node = svg.append("g")
+                .attr("transform", "translate(20,20)")
+                .selectAll("g")
+                .data(nodes)
+                .join("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            node.append("circle")
+                .attr("r", d => d.r)
+                .attr("fill", d => d.data.color)
+                .attr("fill-opacity", 0.7)
+                .attr("stroke", d => d.data.color)
+                .attr("stroke-width", 2)
+                .on("mouseover", (e, d) => {
+                    tooltip.style("opacity", 1).html(`<strong>${d.data.name}</strong><br>테마: ${d.data.parent}`);
+                    d3.select(e.target).attr("fill-opacity", 1);
+                })
+                .on("mousemove", (e) => {
+                    tooltip.style("left", (e.pageX + 15) + "px").style("top", (e.pageY - 15) + "px");
+                })
+                .on("mouseout", (e, d) => {
+                    tooltip.style("opacity", 0);
+                    d3.select(e.target).attr("fill-opacity", 0.7);
+                });
+
+            node.append("text")
+                .attr("text-anchor", "middle")
+                .attr("dy", ".3em")
+                .style("font-size", d => Math.min(d.r / 3, 12) + "px")
+                .style("fill", "#fff")
+                .style("font-weight", "bold")
+                .text(d => d.data.name);
+        }
+
+        // --- 2. Radar Chart ---
+        function renderRadar() {
+            clearViz();
+            d3.select("#btn-radar").classed("active", true);
+            const svg = d3.select("#viz").append("svg").attr("width", width).attr("height", height);
+            const g = svg.append("g").attr("transform", `translate(${width/2},${height/2})`);
+
+            const labels = rawData.map(d => d.name);
+            const radius = 200;
+            const angleSlice = (Math.PI * 2) / labels.length;
+
+            // 배경 다각형 그리드
+            const levels = 5;
+            for(let j=0; j<levels; j++) {
+                const levelRadius = radius * ((j + 1) / levels);
+                g.selectAll(".grid-line-" + j)
+                    .data(labels)
+                    .join("line")
+                    .attr("x1", (d, i) => levelRadius * Math.cos(angleSlice * i - Math.PI/2))
+                    .attr("y1", (d, i) => levelRadius * Math.sin(angleSlice * i - Math.PI/2))
+                    .attr("x2", (d, i) => levelRadius * Math.cos(angleSlice * (i+1) - Math.PI/2))
+                    .attr("y2", (d, i) => levelRadius * Math.sin(angleSlice * (i+1) - Math.PI/2))
+                    .attr("stroke", "#e2e8f0")
+                    .attr("stroke-width", "0.5px");
+            }
+
+            // 축 라벨
+            g.selectAll(".axis-label")
+                .data(labels)
+                .join("text")
+                .attr("class", "axis-label")
+                .attr("x", (d, i) => (radius + 30) * Math.cos(angleSlice * i - Math.PI/2))
+                .attr("y", (d, i) => (radius + 30) * Math.sin(angleSlice * i - Math.PI/2))
+                .attr("text-anchor", "middle")
+                .text(d => d);
+
+            // 데이터 영역
+            const radarLine = d3.lineRadial()
+                .radius(d => (d.value / 100) * radius)
+                .angle((d, i) => i * angleSlice)
+                .curve(d3.curveLinearClosed);
+
+            g.append("path")
+                .datum(rawData)
+                .attr("d", radarLine)
+                .attr("fill", "#3b82f6")
+                .attr("fill-opacity", 0.2)
+                .attr("stroke", "#3b82f6")
+                .attr("stroke-width", 3);
+
+            g.selectAll(".radar-dot")
+                .data(rawData)
+                .join("circle")
+                .attr("cx", (d, i) => (d.value / 100) * radius * Math.cos(angleSlice * i - Math.PI/2))
+                .attr("cy", (d, i) => (d.value / 100) * radius * Math.sin(angleSlice * i - Math.PI/2))
+                .attr("r", 5)
+                .attr("fill", "#3b82f6")
+                .on("mouseover", (e, d) => {
+                    tooltip.style("opacity", 1).html(`<strong>${d.name}</strong><br>테마 강도: ${d.value}%`);
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+        }
+
+        // --- 3. Radial Bar Chart ---
+        function renderRadial() {
+            clearViz();
+            d3.select("#btn-radial").classed("active", true);
+            const svg = d3.select("#viz").append("svg").attr("width", width).attr("height", height);
+            const g = svg.append("g").attr("transform", `translate(${width/2},${height/2})`);
+
+            const innerRadius = 80;
+            const outerRadius = Math.min(width, height) / 2 - 40;
+
+            const x = d3.scaleBand()
+                .range([0, 2 * Math.PI])
+                .align(0)
+                .domain(rawData.map(d => d.name));
+
+            const y = d3.scaleRadial()
+                .range([innerRadius, outerRadius])
+                .domain([0, 100]);
+
+            g.append("g")
+                .selectAll("path")
+                .data(rawData)
+                .join("path")
+                .attr("fill", d => d.color)
+                .attr("d", d3.arc()
+                    .innerRadius(innerRadius)
+                    .outerRadius(d => y(d.value))
+                    .startAngle(d => x(d.name))
+                    .endAngle(d => x(d.name) + x.bandwidth())
+                    .padAngle(0.02)
+                    .padRadius(innerRadius))
+                .on("mouseover", (e, d) => {
+                    tooltip.style("opacity", 1).html(`<strong>${d.name}</strong><br>수치: ${d.value}`);
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+
+            // 라벨 추가
+            g.append("g")
+                .selectAll("g")
+                .data(rawData)
+                .join("g")
+                .attr("text-anchor", "middle")
+                .attr("transform", d => `rotate(${((x(d.name) + x.bandwidth() / 2) * 180 / Math.PI - 90)}) translate(${y(d.value) + 15},0)`)
+                .append("text")
+                .attr("transform", d => (x(d.name) + x.bandwidth() / 2 + Math.PI) % (2 * Math.PI) < Math.PI ? "rotate(90) translate(0,16)" : "rotate(-90) translate(0,-9)")
+                .text(d => d.name)
+                .style("font-size", "11px")
+                .style("fill", "#64748b");
+        }
+
+        function switchChart(type) {
+            if (type === 'bubble') renderBubble();
+            else if (type === 'radar') renderRadar();
+            else if (type === 'radial') renderRadial();
+        }
+
+        window.onload = renderBubble;
+        window.onresize = () => location.reload();
+    </script>
+</body>
+</html>

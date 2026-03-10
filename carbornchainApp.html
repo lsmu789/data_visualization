@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarbonLink - 탄소 절감 플랫폼</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* 네비게이션 */
+        nav {
+            background: rgba(30, 60, 114, 0.95);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        nav .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #4ade80;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 100px 20px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        .hero .subtitle {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .hero .description {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-button {
+            background: #4ade80;
+            color: #1e3c72;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+
+        .cta-button:hover {
+            background: #22c55e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 섹션 스타일 */
+        section {
+            padding: 60px 20px;
+            background: white;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+
+        section h2 {
+            font-size: 2.2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: #1e3c72;
+        }
+
+        section h3 {
+            font-size: 1.5rem;
+            margin: 1.5rem 0 1rem 0;
+            color: #2a5298;
+        }
+
+        /* 문제 설명 */
+        .problem-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .problem-item {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 10px;
+            border-left: 5px solid #ef4444;
+            transition: transform 0.3s;
+        }
+
+        .problem-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .problem-item h4 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #ef4444;
+        }
+
+        /* 해결 방법 */
+        .solution-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .solution-item {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            padding: 2rem;
+            border-radius: 10px;
+            border-left: 5px solid #4ade80;
+            transition: transform 0.3s;
+        }
+
+        .solution-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .solution-item h4 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #059669;
+        }
+
+        /* 앱 시뮬레이션 */
+        .simulator {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(42, 82, 152, 0.4);
+        }
+
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .result-message {
+            background: #ecfdf5;
+            border-left: 4px solid #4ade80;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            font-size: 1.1rem;
+            color: #059669;
+            display: none;
+        }
+
+        .result-message.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* 대시보드 */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card.today {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        }
+
+        .stat-card.month {
+            background: linear-gradient(135deg, #d1d5db 0%, #e5e7eb 100%);
+        }
+
+        .stat-card.token {
+            background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+        }
+
+        .stat-card h4 {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+
+        /* 차트 */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 2rem 0;
+        }
+
+        /* 미래 확장 */
+        .future-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: #f0f9ff;
+            border: 2px solid #0ea5e9;
+            padding: 2rem;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.2);
+        }
+
+        .feature-card h4 {
+            color: #0369a1;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .feature-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-card li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .feature-card li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #0ea5e9;
+            font-weight: bold;
+        }
+
+        /* 메시지 박스 */
+        .message-box {
+            background: #f0fdf4;
+            border-left: 5px solid #4ade80;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            margin: 2rem 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1e7e34;
+        }
+
+        /* 애니메이션 */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* 푸터 */
+        footer {
+            background: rgba(30, 60, 114, 0.95);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 4rem;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            nav ul {
+                gap: 1rem;
+            }
+
+            section {
+                padding: 40px 15px;
+            }
+
+            section h2 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 네비게이션 -->
+    <nav>
+        <div class="container">
+            <div class="logo">🌱 CarbonLink</div>
+            <ul>
+                <li><a href="#problem">문제</a></li>
+                <li><a href="#solution">해결</a></li>
+                <li><a href="#simulator">시뮬레이션</a></li>
+                <li><a href="#dashboard">대시보드</a></li>
+                <li><a href="#future">미래</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>🌍 CarbonLink</h1>
+            <p class="subtitle">환경 행동을 가치로 만드는 플랫폼</p>
+            <p class="description">
+                개인의 탄소절감 행동을 데이터로 기록하고 블록체인으로 인증하여 토큰화하는 시스템
+            </p>
+            <button class="cta-button" onclick="scrollToSection('simulator')">지금 시작하기</button>
+        </div>
+    </section>
+
+    <!-- 문제 설명 -->
+    <section id="problem" class="container">
+        <h2>❌ 왜 이 아이디어가 필요한가?</h2>
+        <p style="text-align: center; margin-bottom: 2rem;">
+            지구의 탄소 문제는 대부분 기업 중심 해결 방식으로 접근되고 있습니다.<br>
+            하지만 실제 탄소 절감은 <strong>개인의 작은 행동</strong>에서 시작됩니다.
+        </p>
+
+        <div class="problem-items">
+            <div class="problem-item">
+                <h4>🚫 기록 부재</h4>
+                <p>대중교통 이용, 자전거 이동, 텀블러 사용 등 친환경 행동이 기록되지 않습니다.</p>
+            </div>
+            <div class="problem-item">
+                <h4>🚫 보상 없음</h4>
+                <p>이런 행동들이 얼마나 탄소를 줄이는지 알 수 없고 보상도 없습니다.</p>
+            </div>
+            <div class="problem-item">
+                <h4>🚫 신뢰 부족</h4>
+                <p>데이터 조작 위험으로 신뢰성 있는 탄소 인증 시스템이 없습니다.</p>
+            </div>
+        </div>
+
+        <div class="message-box" style="margin-top: 3rem;">
+            개인 → 도시 → 국가 → 세계로 이어지는<br>
+            탄소 절감 네트워크를 만들어야 합니다.
+        </div>
+    </section>
+
+    <!-- 해결 방법 -->
+    <section id="solution" class="container">
+        <h2>✅ 우리의 해결책</h2>
+
+        <div class="solution-items">
+            <div class="solution-item">
+                <h4>📊 데이터 기록</h4>
+                <p>개인의 작은 행동을 데이터로 정확하게 기록합니다.</p>
+            </div>
+            <div class="solution-item">
+                <h4>🔐 블록체인 인증</h4>
+                <p>기록된 데이터를 변조 불가능한 블록체인에 저장합니다.</p>
+            </div>
+            <div class="solution-item">
+                <h4>💰 토큰화</h4>
+                <p>탄소 절감을 NFT 또는 토큰으로 발행하여 가치화합니다.</p>
+            </div>
+        </div>
+
+        <h3 style="margin-top: 3rem;">🔗 왜 블록체인인가?</h3>
+        <ul style="margin-top: 1rem; padding-left: 2rem;">
+            <li>기록이 변조 불가능 (위변조 방지)</li>
+            <li>행동 데이터를 투명하게 공개</li>
+            <li>개인 탄소 절감을 디지털 자산으로 변환</li>
+        </ul>
+
+        <div class="message-box" style="margin-top: 2rem;">
+            탄소 절감 = 디지털 자산
+        </div>
+    </section>
+
+    <!-- 앱 시뮬레이션 -->
+    <section id="simulator" class="container">
+        <h2>🎮 앱 시뮬레이션</h2>
+        <p style="text-align: center; margin-bottom: 2rem;">
+            친환경 행동을 기록하고 즉시 탄소 토큰을 획득해보세요!
+        </p>
+
+        <div class="simulator">
+            <div class="action-buttons">
+                <button class="action-btn" onclick="recordAction('대중교통 이용', 151)">
+                    🚇 대중교통<br><small>(151g CO2 절감)</small>
+                </button>
+                <button class="action-btn" onclick="recordAction('자전거 이동', 300)">
+                    🚴 자전거<br><small>(300g CO2 절감)</small>
+                </button>
+                <button class="action-btn" onclick="recordAction('텀블러 사용', 50)">
+                    ♻️ 텀블러<br><small>(50g CO2 절감)</small>
+                </button>
+                <button class="action-btn" onclick="recordAction('전기 절약', 100)">
+                    💡 전기 절약<br><small>(100g CO2 절감)</small>
+                </button>
+            </div>
+
+            <div id="resultMessage" class="result-message"></div>
+        </div>
+    </section>
+
+    <!-- 대시보드 -->
+    <section id="dashboard" class="container">
+        <h2>📊 나의 탄소 절감 대시보드</h2>
+
+        <div class="dashboard">
+            <div class="stat-card today">
+                <h4>오늘 탄소 절감</h4>
+                <div class="value" id="todayValue">0</div>
+                <p style="margin-top: 0.5rem; color: #0c4a6e;">kg CO2</p>
+            </div>
+            <div class="stat-card month">
+                <h4>이번 달 절감</h4>
+                <div class="value" id="monthValue">48</div>
+                <p style="margin-top: 0.5rem; color: #374151;">kg CO2</p>
+            </div>
+            <div class="stat-card token">
+                <h4>총 토큰</h4>
+                <div class="value" id="tokenValue">0</div>
+                <p style="margin-top: 0.5rem; color: #6b21a8;">CT</p>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+
+        <h3 style="margin-top: 2rem;">📈 탄소 절감 추이</h3>
+        <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </section>
+
+    <!-- 미래 확장 -->
+    <section id="future" class="container">
+        <h2>🚀 미래 확장 아이디어</h2>
+
+        <div class="future-features">
+            <div class="feature-card">
+                <h4>🌍 글로벌 플랫폼</h4>
+                <ul>
+                    <li>걷기</li>
+                    <li>자전거</li>
+                    <li>전기차</li>
+                    <li>친환경 소비</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h4>💳 탄소 토큰 경제</h4>
+                <ul>
+                    <li>친환경 브랜드 할인</li>
+                    <li>카페 할인</li>
+                    <li>대중교통 포인트</li>
+                    <li>탄소 크레딧 거래</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h4>🎖️ 탄소 NFT</h4>
+                <ul>
+                    <li>100kg 절감 NFT</li>
+                    <li>1000km 친환경 이동</li>
+                    <li>환경 활동 인증서</li>
+                    <li>레벨별 배지</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3 style="margin-top: 3rem;">🏆 실제 사례</h3>
+        <p style="margin-top: 1rem;">
+            이미 세계에서는 탄소 크레딧 시장이 존재합니다:
+        </p>
+        <ul style="margin-top: 1rem; padding-left: 2rem;">
+            <li><strong>Toucan Protocol</strong> - 탄소 크레딧을 블록체인 토큰으로 변환</li>
+            <li><strong>KlimaDAO</strong> - 탄소 크레딧 거래 플랫폼</li>
+        </ul>
+        <p style="margin-top: 1rem;">
+            <strong>CarbonLink의 차별점:</strong> 개인 탄소 크레딧 플랫폼으로서, 누구나 참여할 수 있습니다.
+        </p>
+    </section>
+
+    <!-- 핵심 메시지 -->
+    <section class="container">
+        <div class="message-box">
+            CarbonLink는<br>
+            "환경 행동을 기록하는 플랫폼"이 아니라<br>
+            <strong>"환경 행동을 가치로 만드는 플랫폼"</strong>입니다.
+        </div>
+    </section>
+
+    <!-- 푸터 -->
+    <footer>
+        <p>&copy; 2024 CarbonLink. 함께 만드는 지속 가능한 미래</p>
+    </footer>
+
+    <script>
+        let totalTokens = 0;
+        let todayCarbon = 0;
+        const actionHistory = [];
+
+        function recordAction(actionName, carbonReduction) {
+            // 탄소 절감 기록
+            todayCarbon += carbonReduction / 1000; // g to kg
+
+            // 토큰 계산 (탄소 절감량의 10배)
+            const tokensEarned = Math.round(carbonReduction / 100);
+            totalTokens += tokensEarned;
+
+            // 결과 메시지 표시
+            const resultDiv = document.getElementById('resultMessage');
+            resultDiv.innerHTML = `
+                <strong>✅ 탄소 절감 인증 완료!</strong><br>
+                행동: ${actionName}<br>
+                탄소 절감: ${(carbonReduction / 1000).toFixed(3)} kg CO2<br>
+                토큰 획득: +${tokensEarned} CT 🎉
+            `;
+            resultDiv.classList.add('show');
+
+            // 3초 후 메시지 숨김
+            setTimeout(() => {
+                resultDiv.classList.remove('show');
+            }, 3000);
+
+            // 대시보드 업데이트
+            updateDashboard();
+
+            // 액션 기록
+            actionHistory.push({
+                action: actionName,
+                carbon: carbonReduction / 1000,
+                tokens: tokensEarned,
+                timestamp: new Date()
+            });
+        }
+
+        function updateDashboard() {
+            document.getElementById('todayValue').textContent = todayCarbon.toFixed(1);
+            document.getElementById('tokenValue').textContent = totalTokens;
+        }
+
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 차트 초기화
+        function initCharts() {
+            // 비교 차트
+            const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+            new Chart(comparisonCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['나의 탄소 절감', '도시 평균', '세계 평균'],
+                    datasets: [{
+                        label: 'kg CO2 절감/월',
+                        data: [48, 25, 15],
+                        backgroundColor: [
+                            'rgba(74, 222, 128, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(249, 115, 22, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(74, 222, 128, 1)',
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(249, 115, 22, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 추이 차트
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: ['1주차', '2주차', '3주차', '4주차', '5주차'],
+                    datasets: [{
+                        label: '누적 탄소 절감 (kg CO2)',
+                        data: [8, 18, 28, 38, 48],
+                        borderColor: 'rgba(74, 222, 128, 1)',
+                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(74, 222, 128, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // 페이지 로드 시 차트 초기화
+        window.addEventListener('load', () => {
+            initCharts();
+            updateDashboard();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주가 × 거래량 시각화 연구</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); font-family: 'Segoe UI', sans-serif; }
+        .header { background: white; border-bottom: 2px solid #e2e8f0; padding: 20px 0; }
+        .chart-container { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .menu-btn { padding: 10px 18px; margin-right: 8px; margin-bottom: 8px; border-radius: 8px; background: #f1f5f9; border: 2px solid #e2e8f0; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; }
+        .menu-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .menu-btn:hover { border-color: #3b82f6; }
+        .description { background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-top: 20px; line-height: 1.7; font-size: 14px; }
+        .chart-label { font-size: 12px; fill: #64748b; }
+        .tooltip { position: absolute; padding: 10px 14px; background: #1e293b; color: white; border-radius: 6px; opacity: 0; font-size: 12px; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: opacity 0.2s; pointer-events: none; }
+        .axis-label { font-size: 12px; fill: #64748b; font-weight: 600; }
+        svg { overflow: visible; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="max-w-7xl mx-auto">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">주가 × 거래량 시각화 연구</h1>
+            <p class="text-slate-600 mb-6">삼성전자 30일 데이터로 보는 5가지 시각화 방법</p>
+            <div class="flex flex-wrap gap-2">
+                <button class="menu-btn active" onclick="switchVisualization(1)">1️⃣ 버블차트</button>
+                <button class="menu-btn" onclick="switchVisualization(2)">2️⃣ 히트맵</button>
+                <button class="menu-btn" onclick="switchVisualization(3)">3️⃣ 스택 영역</button>
+                <button class="menu-btn" onclick="switchVisualization(4)">4️⃣ 가격+거래량</button>
+                <button class="menu-btn" onclick="switchVisualization(5)">5️⃣ 나선형</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto mt-8 mb-8">
+        <div class="chart-container">
+            <div id="viz" style="width: 100%; height: 500px;"></div>
+        </div>
+        <div id="tooltip" class="tooltip"></div>
+
+        <div id="description" class="description">
+            <p id="desc-text"></p>
+        </div>
+    </div>
+
+    <script>
+        const vizWidth = document.getElementById('viz').offsetWidth - 40;
+        const vizHeight = 500;
+        let currentViz = 1;
+        let svg = null;
+
+        // 예시 데이터: 30일 거래 데이터
+        const generateData = () => {
+            const data = [];
+            let price = 70000;
+            for (let i = 1; i <= 30; i++) {
+                const change = (Math.random() - 0.5) * 2000;
+                price += change;
+                data.push({
+                    date: i,
+                    dateLabel: `${i}일`,
+                    price: Math.max(65000, Math.min(75000, price)),
+                    volume: Math.floor(Math.random() * 5000000 + 1000000) // 1000만 ~ 6000만
+                });
+            }
+            return data;
+        };
+
+        const data = generateData();
+
+        const visualizations = {
+            1: {
+                title: "버블차트: 가격 추이 + 거래량 크기",
+                description: "<b>시각화 원리:</b> X축=시간(날짜), Y축=가격, 버블 크기=거래량, 빨간선=가격 추이<br><b>해석:</b> 버블이 크면 거래량이 많음을 의미. 같은 가격대에서도 거래량이 크게 증가하는 지점은 '강한 관심'을 뜻합니다. 빨간선을 따라 전체 가격 추세를 파악합니다.<br><b>강점:</b> 가격 추이선 + 버블 + 거래량을 모두 동시에 표현<br><b>약점:</b> 데이터가 많으면 버블이 겹쳐서 읽기 어려움 (30개 정도가 최적)",
+                draw: drawBubbleChart
+            },
+            2: {
+                title: "히트맵: 거래량 집중도 표현",
+                description: "<b>시각화 원리:</b> X축=시간, Y축=가격대(구간), 색상 진하기=거래량<br><b>해석:</b> 어떤 가격대에서 거래량이 집중되는지 한눈에 파악. 빨강에 가까울수록 거래 집중도 높음<br><b>강점:</b> 가격대별 거래량 집중을 명확하게 표현<br><b>약점:</b> 정확한 가격 트렌드 파악은 어려움",
+                draw: drawHeatmap
+            },
+            3: {
+                title: "스택 영역: 가격 + 거래량 중첩",
+                description: "<b>시각화 원리:</b> 선 그래프(가격) + 아래쪽 영역(거래량)<br><b>해석:</b> 가격 변동을 추적하면서 동시에 거래량이 얼마나 뒷받침되는지 확인<br><b>강점:</b> 전통적이고 직관적. 거래량 스파이크 포착 용이<br><b>약점:</b> 거래량 영역이 가격을 가리울 수 있음",
+                draw: drawStackedArea
+            },
+            4: {
+                title: "가격 + 거래량 이중축 차트",
+                description: "<b>시각화 원리:</b> 왼쪽 Y축=가격(선), 오른쪽 Y축=거래량(바)<br><b>해석:</b> 가격 변동과 거래량을 별도의 축으로 분리. 둘의 관계를 직관적으로 파악<br><b>강점:</b> 거래량 스파이크와 가격 움직임의 인과관계 명확<br><b>약점:</b> 축의 스케일에 따라 시각적 왜곡 가능성",
+                draw: drawDualAxis
+            },
+            5: {
+                title: "나선형 그래프: 시간 × 가격 × 거래량",
+                description: "<b>시각화 원리:</b> 시간이 지남에 따라 나선형으로 그려짐. 반지름=거래량, 각도=시간, Y축=가격<br><b>해석:</b> 나선이 뚱뚱해질수록 거래량 증가. 나선의 높이로 가격 추이 파악<br><b>강점:</b> 3개 차원을 동시에 표현하는 창의적 방식<br><b>약점:</b> 직관적 이해가 어려울 수 있음. 연구 목적에 최적",
+                draw: drawSpiral
+            }
+        };
+
+        function initViz() {
+            d3.select("#viz svg").remove();
+            svg = d3.select("#viz").append("svg")
+                .attr("width", vizWidth + 40)
+                .attr("height", vizHeight);
+        }
+
+        // 1번: 버블차트
+        function drawBubbleChart() {
+            initViz();
+            const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+            const width = vizWidth - margin.left - margin.right;
+            const height = vizHeight - margin.top - margin.bottom;
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const xScale = d3.scaleLinear()
+                .domain([1, 30])
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([d3.min(data, d => d.price) - 1000, d3.max(data, d => d.price) + 1000])
+                .range([height, 0]);
+
+            const radiusScale = d3.scaleSqrt()
+                .domain([d3.min(data, d => d.volume), d3.max(data, d => d.volume)])
+                .range([3, 20]);
+
+            // 축
+            g.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).tickFormat(d => d + "일"))
+                .append("text")
+                .attr("x", width / 2)
+                .attr("y", 35)
+                .attr("class", "axis-label")
+                .attr("text-anchor", "middle")
+                .text("시간 (날짜)");
+
+            g.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(d => (d / 1000).toFixed(0) + "K"))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -45)
+                .attr("class", "axis-label")
+                .attr("text-anchor", "middle")
+                .text("가격 (원)");
+
+            // 가격 선 추가
+            const line = d3.line()
+                .x(d => xScale(d.date))
+                .y(d => yScale(d.price));
+
+            g.append("path")
+                .datum(data)
+                .attr("fill", "none")
+                .attr("stroke", "#ef4444")
+                .attr("stroke-width", 2.5)
+                .attr("d", line);
+
+            // 버블
+            g.selectAll("circle")
+                .data(data)
+                .join("circle")
+                .attr("cx", d => xScale(d.date))
+                .attr("cy", d => yScale(d.price))
+                .attr("r", d => radiusScale(d.volume))
+                .attr("fill", "#3b82f6")
+                .attr("opacity", 0.6)
+                .attr("stroke", "#1e40af")
+                .attr("stroke-width", 1.5)
+                .on("mouseover", (e, d) => {
+                    d3.select("#tooltip").style("opacity", 1).html(`
+                        <strong>${d.dateLabel}</strong><br>
+                        가격: ${d.price.toLocaleString()}원<br>
+                        거래량: ${(d.volume / 1000000).toFixed(1)}백만주
+                    `);
+                })
+                .on("mousemove", (e) => {
+                    d3.select("#tooltip")
+                        .style("left", (e.pageX + 15) + "px")
+                        .style("top", (e.pageY - 15) + "px");
+                })
+                .on("mouseout", () => d3.select("#tooltip").style("opacity", 0));
+
+            // 범례
+            const legend = g.append("g")
+                .attr("transform", `translate(${width - 120}, 20)`);
+
+            legend.append("text")
+                .attr("class", "axis-label")
+                .text("버블 크기 = 거래량");
+
+            [1000000, 3000000, 5000000].forEach((vol, i) => {
+                legend.append("circle")
+                    .attr("cx", 15)
+                    .attr("cy", 30 + i * 25)
+                    .attr("r", radiusScale(vol))
+                    .attr("fill", "#3b82f6")
+                    .attr("opacity", 0.6);
+
+                legend.append("text")
+                    .attr("x", 35)
+                    .attr("y", 35 + i * 25)
+                    .attr("font-size", "11px")
+                    .text((vol / 1000000).toFixed(1) + "백만");
+            });
+        }
+
+        // 2번: 히트맵
+        function drawHeatmap() {
+            initViz();
+            const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+            const width = vizWidth - margin.left - margin.right;
+            const height = vizHeight - margin.top - margin.bottom;
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // 가격대를 5개 구간으로 나눔
+            const priceMin = d3.min(data, d => d.price);
+            const priceMax = d3.max(data, d => d.price);
+            const priceRange = priceMax - priceMin;
+            const bucketHeight = priceRange / 5;
+
+            // 히트맵 데이터 생성
+            const heatmapData = [];
+            for (let day = 1; day <= 30; day++) {
+                for (let bucket = 0; bucket < 5; bucket++) {
+                    const minPrice = priceMin + bucket * bucketHeight;
+                    const maxPrice = minPrice + bucketHeight;
+                    const dayData = data.filter(d => d.date === day);
+
+                    // 이 가격대에 몇 거래가 몰렸는지 (단순화)
+                    const volume = dayData.reduce((sum, d) => {
+                        if (d.price >= minPrice && d.price < maxPrice) {
+                            return sum + d.volume;
+                        }
+                        return sum;
+                    }, 0) / 1000000;
+
+                    heatmapData.push({
+                        day: day,
+                        bucket: bucket,
+                        volume: volume,
+                        label: `${(minPrice / 1000).toFixed(0)}K ~ ${(maxPrice / 1000).toFixed(0)}K`
+                    });
+                }
+            }
+
+            const xScale = d3.scaleBand().domain(d3.range(1, 31)).range([0, width]).padding(0.02);
+            const yScale = d3.scaleBand().domain(d3.range(0, 5)).range([height, 0]).padding(0.02);
+            const colorScale = d3.scaleLinear()
+                .domain([0, 3])
+                .range(["#dbeafe", "#dc2626"]);
+
+            // 히트맵 셀
+            g.selectAll("rect")
+                .data(heatmapData)
+                .join("rect")
+                .attr("x", d => xScale(d.day))
+                .attr("y", d => yScale(d.bucket))
+                .attr("width", xScale.bandwidth())
+                .attr("height", yScale.bandwidth())
+                .attr("fill", d => colorScale(d.volume))
+                .on("mouseover", (e, d) => {
+                    d3.select("#tooltip").style("opacity", 1).html(`
+                        <strong>${d.day}일</strong><br>
+                        가격대: ${d.label}<br>
+                        거래량: ${d.volume.toFixed(2)}백만주
+                    `);
+                })
+                .on("mousemove", (e) => {
+                    d3.select("#tooltip")
+                        .style("left", (e.pageX + 15) + "px")
+                        .style("top", (e.pageY - 15) + "px");
+                })
+                .on("mouseout", () => d3.select("#tooltip").style("opacity", 0));
+
+            // 축
+            g.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).tickFormat(d => d + "일"))
+                .append("text")
+                .attr("x", width / 2)
+                .attr("y", 35)
+                .attr("class", "axis-label")
+                .attr("text-anchor", "middle")
+                .text("시간 (날짜)");
+
+            g.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(d => ["저", "", "중", "", "고"][d]))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -45)
+                .attr("class", "axis-label")
+                .attr("text-anchor", "middle")
+                .text("가격대");
+        }
+
+        // 3번: 스택 영역
+        function drawStackedArea() {
+            initViz();
+            const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+            const width = vizWidth - margin.left - margin.right;
+            const height = vizHeight - margin.top - margin.bottom;
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const xScale = d3.scaleLinear()
+                .domain([1, 30])
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.volume) * 1.1])
+                .range([height, 0]);
+
+            const priceScale = d3.scaleLinear()
+                .domain([d3.min(data, d => d.price) - 1000, d3.max(data, d => d.price) + 1000])
+                .range([height, height - 150]); // 위쪽 150px는 가격선용
+
+            // 거래량 영역
+            const area = d3.area()
+                .x(d => xScale(d.date))
+                .y0(d => height)
+                .y1(d => yScale(d.volume));
+
+            g.append("path")
+                .datum(data)
+                .attr("fill", "#93c5fd")
+                .attr("opacity", 0.5)
+                .attr("d", area);
+
+            // 가격 선
+            const line = d3.line()
+                .x(d => xScale(d.date))
+                .y(d => priceScale(d.price));
+
+            g.append("path")
+                .datum(data)
+                .attr("fill", "none")
+                .attr("stroke", "#ef4444")
+                .attr("stroke-width", 2.5)
+                .attr("d", line);
+
+            // 축
+            g.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).tickFormat(d => d + "일"))
+                .append("text")
+                .attr("x", width / 2)
+                .attr("y", 35)
+                .attr("class", "axis-label")
+                .text("시간 (날짜)");
+
+            // 범례
+            g.append("text").attr("x", 10).attr("y", 20).attr("class", "axis-label").text("▬ 가격");
+            g.append("text").attr("x", 10).attr("y", 40).attr("class", "axis-label").text("█ 거래량");
+            g.append("circle").attr("cx", 5).attr("cy", 13).attr("r", 2).attr("fill", "#ef4444");
+            g.append("rect").attr("x", 2).attr("y", 35).attr("width", 6).attr("height", 6).attr("fill", "#93c5fd");
+        }
+
+        // 4번: 이중축 (가격 + 거래량)
+        function drawDualAxis() {
+            initViz();
+            const margin = { top: 20, right: 60, bottom: 40, left: 60 };
+            const width = vizWidth - margin.left - margin.right;
+            const height = vizHeight - margin.top - margin.bottom;
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const xScale = d3.scaleLinear().domain([1, 30]).range([0, width]);
+            const yLeftScale = d3.scaleLinear()
+                .domain([d3.min(data, d => d.price) - 1000, d3.max(data, d => d.price) + 1000])
+                .range([height, 0]);
+            const yRightScale = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.volume) * 1.1])
+                .range([height, 0]);
+
+            // 거래량 바
+            g.selectAll(".bar")
+                .data(data)
+                .join("rect")
+                .attr("class", "bar")
+                .attr("x", d => xScale(d.date) - 6)
+                .attr("y", d => yRightScale(d.volume))
+                .attr("width", 12)
+                .attr("height", d => height - yRightScale(d.volume))
+                .attr("fill", "#60a5fa")
+                .attr("opacity", 0.6);
+
+            // 가격 선
+            const line = d3.line()
+                .x(d => xScale(d.date))
+                .y(d => yLeftScale(d.price));
+
+            g.append("path")
+                .datum(data)
+                .attr("fill", "none")
+                .attr("stroke", "#ef4444")
+                .attr("stroke-width", 2.5)
+                .attr("d", line);
+
+            // 축
+            g.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).tickFormat(d => d + "일"));
+
+            g.append("g")
+                .call(d3.axisLeft(yLeftScale).tickFormat(d => (d / 1000).toFixed(0) + "K"))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -45)
+                .attr("class", "axis-label")
+                .text("가격");
+
+            g.append("g")
+                .attr("transform", `translate(${width},0)`)
+                .call(d3.axisRight(yRightScale).tickFormat(d => (d / 1000000).toFixed(0) + "M"))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", 45)
+                .attr("class", "axis-label")
+                .attr("text-anchor", "middle")
+                .text("거래량");
+
+            // 범례
+            g.append("line").attr("x1", -50).attr("x2", -35).attr("y1", -5).attr("y2", -5).attr("stroke", "#ef4444").attr("stroke-width", 2.5);
+            g.append("text").attr("x", -30).attr("y", 0).attr("font-size", "11px").text("가격");
+            g.append("rect").attr("x", -50).attr("y", 10).attr("width", 10).attr("height", 8).attr("fill", "#60a5fa").attr("opacity", 0.6);
+            g.append("text").attr("x", -30).attr("y", 18).attr("font-size", "11px").text("거래량");
+        }
+
+        // 5번: 나선형
+        function drawSpiral() {
+            initViz();
+            const centerX = vizWidth / 2;
+            const centerY = vizHeight / 2;
+
+            const maxRadius = Math.min(centerX, centerY) - 40;
+            const g = svg.append("g")
+                .attr("transform", `translate(${centerX},${centerY})`);
+
+            // 나선형 경로 생성
+            const spiralData = data.map((d, i) => {
+                const angle = (i / 30) * Math.PI * 6; // 3회전
+                const radius = (i / 30) * maxRadius;
+                const radiusSize = d3.scaleSqrt()
+                    .domain([d3.min(data, dd => dd.volume), d3.max(data, dd => dd.volume)])
+                    .range([2, 15])(d.volume);
+
+                return {
+                    ...d,
+                    x: radius * Math.cos(angle),
+                    y: radius * Math.sin(angle),
+                    angle: angle,
+                    radiusSize: radiusSize
+                };
+            });
+
+            // 나선 배경선
+            const spiralPath = d3.line()
+                .x(d => d.x)
+                .y(d => d.y);
+
+            g.append("path")
+                .datum(spiralData)
+                .attr("fill", "none")
+                .attr("stroke", "#e5e7eb")
+                .attr("stroke-width", 1)
+                .attr("stroke-dasharray", "3,3")
+                .attr("d", spiralPath);
+
+            // 나선 포인트
+            g.selectAll("circle")
+                .data(spiralData)
+                .join("circle")
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("r", d => d.radiusSize)
+                .attr("fill", d3.scaleLinear()
+                    .domain([d3.min(data, d => d.price), d3.max(data, d => d.price)])
+                    .range(["#3b82f6", "#ef4444"])(d => d.price))
+                .attr("opacity", 0.7)
+                .on("mouseover", (e, d) => {
+                    d3.select("#tooltip").style("opacity", 1).html(`
+                        <strong>${d.dateLabel}</strong><br>
+                        가격: ${d.price.toLocaleString()}원<br>
+                        거래량: ${(d.volume / 1000000).toFixed(1)}백만주<br>
+                        원점에서의 거리: 진행도
+                    `);
+                })
+                .on("mousemove", (e) => {
+                    d3.select("#tooltip")
+                        .style("left", (e.pageX + 15) + "px")
+                        .style("top", (e.pageY - 15) + "px");
+                })
+                .on("mouseout", () => d3.select("#tooltip").style("opacity", 0));
+
+            // 범례
+            const legend = g.append("g").attr("transform", `translate(${-maxRadius + 20}, ${-maxRadius + 20})`);
+            legend.append("text").attr("class", "axis-label").text("나선형 시각화:");
+            legend.append("text").attr("class", "axis-label").attr("y", 20).text("• 거리 = 시간 진행");
+            legend.append("text").attr("class", "axis-label").attr("y", 40).text("• 버블 크기 = 거래량");
+            legend.append("text").attr("class", "axis-label").attr("y", 60).text("• 색상 = 가격");
+
+            // 중심점
+            g.append("circle").attr("cx", 0).attr("cy", 0).attr("r", 4).attr("fill", "#1e293b");
+            g.append("text").attr("x", 10).attr("y", 4).attr("font-size", "10px").text("시작(1일)");
+        }
+
+        // 시각화 전환
+        function switchVisualization(num) {
+            currentViz = num;
+            document.querySelectorAll(".menu-btn").forEach((btn, idx) => {
+                btn.classList.toggle("active", idx + 1 === num);
+            });
+
+            const viz = visualizations[num];
+            document.getElementById("desc-text").innerHTML = viz.description;
+            viz.draw();
+        }
+
+        // 초기 로드
+        switchVisualization(1);
+    </script>
+</body>
+</html>

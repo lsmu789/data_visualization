@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주식 종목 네트워크 시각화 - Force Graph</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); color: #1e293b; font-family: 'Segoe UI', sans-serif; }
+        .chart-container { background: #ffffff; border-radius: 16px; position: relative; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .node circle { cursor: pointer; transition: all 0.2s ease; }
+        .node circle:hover { filter: brightness(1.2); stroke-width: 3px !important; }
+        .link { stroke: #cbd5e1; stroke-opacity: 0.5; }
+        .label { font-size: 9px; fill: #475569; pointer-events: none; font-weight: 600; }
+        .theme-label { font-size: 12px; font-weight: 800; fill: #000000; pointer-events: none; text-shadow: 0 0 3px rgba(255,255,255,0.9); }
+        .tooltip { position: absolute; padding: 12px 16px; background: #1e293b; color: white; border-radius: 8px; pointer-events: none; opacity: 0; font-size: 12px; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: opacity 0.2s; }
+        .section { background: white; border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6; }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 헤더 -->
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-slate-900 mb-2">주식 종목 Force Network 시각화</h1>
+            <p class="text-slate-600 text-lg">테마 중심의 종목 클러스터링 및 다중 테마 영향 분석</p>
+        </header>
+
+        <!-- 시각화 영역 -->
+        <div id="viz" class="chart-container w-full h-[700px] mb-8"></div>
+        <div id="tooltip" class="tooltip"></div>
+
+        <!-- 범례 -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <div class="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200">
+                <span class="inline-block w-4 h-4 rounded-full" style="background: #ccff00; border: 2px solid #000;"></span>
+                <span class="text-xs font-bold">핵심 테마</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-white rounded-lg border border-red-200">
+                <span class="inline-block w-4 h-4 rounded-full" style="background: #ef4444;"></span>
+                <span class="text-xs font-bold">방산/항공</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-white rounded-lg border border-amber-200">
+                <span class="inline-block w-4 h-4 rounded-full" style="background: #fbbf24;"></span>
+                <span class="text-xs font-bold">에너지</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-white rounded-lg border border-emerald-200">
+                <span class="inline-block w-4 h-4 rounded-full" style="background: #34d399;"></span>
+                <span class="text-xs font-bold">건설/인프라</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-white rounded-lg border border-cyan-200">
+                <span class="inline-block w-4 h-4 rounded-full" style="background: #22d3ee;"></span>
+                <span class="text-xs font-bold">물류/해운</span>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-white rounded-lg border border-violet-200">
+                <span class="inline-block w-4 h-4 rounded-full" style="background: #a78bfa;"></span>
+                <span class="text-xs font-bold">식량/비료</span>
+            </div>
+        </div>
+
+        <!-- 설명 섹션 -->
+        <div class="section mb-8 border-l-blue-500">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">📊 시각화 설명</h2>
+            <div class="space-y-4 text-slate-700">
+                <div>
+                    <h3 class="font-semibold text-slate-800 mb-2">🎯 노드(Node)의 의미:</h3>
+                    <ul class="list-disc list-inside space-y-1 ml-2">
+                        <li><strong>형광 노랑 노드:</strong> 시장을 주도하는 핵심 테마 (중동전쟁, 에너지, 인프라 등)</li>
+                        <li><strong>색상 노드:</strong> 개별 주식 종목 (테마에 따라 색상 분류)</li>
+                        <li><strong>노드 크기:</strong> 상대적 중요도 또는 시장 영향력</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 mb-2">🔗 연결선(Link)의 의미:</h3>
+                    <ul class="list-disc list-inside space-y-1 ml-2">
+                        <li><strong>선의 길이:</strong> 주식과 테마의 관련도 (짧을수록 강한 연관)</li>
+                        <li><strong>선의 굵기:</strong> 영향 강도를 나타냄 (굵을수록 강함)</li>
+                        <li><strong>다중 선 연결:</strong> 여러 테마에 영향받는 종목 = 테마 간의 '교점' 역할</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 mb-2">✨ 핵심 인사이트:</h3>
+                    <ul class="list-disc list-inside space-y-1 ml-2">
+                        <li>비슷한 색상 종목들이 한곳에 모여 있음 = 같은 테마로 묶임</li>
+                        <li>테마 중간에 위치한 종목 = 두 테마의 영향을 모두 받음 (포트폴리오 분산에 유리)</li>
+                        <li>고립된 종목 = 특정 테마에만 강하게 의존</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 장점 섹션 -->
+        <div class="section mb-8 border-l-green-500">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">✅ Force Network의 강점</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold text-green-700 mb-2 text-lg">자동 최적 배치</h3>
+                    <p class="text-slate-700">물리 엔진이 노드들을 자동으로 배치하여, 관련도 높은 종목들이 자연스럽게 가까워짐. 수동으로 배치할 필요 없음.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-green-700 mb-2 text-lg">다차원 관계 표현</h3>
+                    <p class="text-slate-700">테마-종목, 종목-종목 관계를 동시에 시각화. 스프레드시트나 차트로는 불가능한 복잡한 관계를 직관적으로 표현.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-green-700 mb-2 text-lg">상호작용성</h3>
+                    <p class="text-slate-700">드래그로 노드를 움직이고, 호버로 상세 정보 확인. 실시간으로 관계 구조를 탐색할 수 있음.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-green-700 mb-2 text-lg">Cluster 자동 형성</h3>
+                    <p class="text-slate-700">코딩 없이 같은 테마 종목들이 자동으로 한 그룹을 이룸. 포트폴리오 다각화 전략 수립에 직접 활용 가능.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-green-700 mb-2 text-lg">교점(Hub) 자동 발견</h3>
+                    <p class="text-slate-700">여러 테마와 연결된 종목이 자동으로 중심에 위치. 이 종목들은 시장 변화에 민감한 '척도' 역할.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-green-700 mb-2 text-lg">시간 기반 분석</h3>
+                    <p class="text-slate-700">링크 강도(value)를 실시간으로 업데이트하면 시간에 따른 종목 관계 변화를 동적으로 표현 가능.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 단점 섹션 -->
+        <div class="section border-l-red-500">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">⚠️ Force Network의 한계</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold text-red-700 mb-2 text-lg">확장성 문제</h3>
+                    <p class="text-slate-700">노드 수가 100개를 넘으면 시각화가 복잡해지고 성능 저하 발생. 대규모 주식 데이터(수천 개 종목)에는 부적합.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-red-700 mb-2 text-lg">비결정적 배치</h3>
+                    <p class="text-slate-700">매번 실행할 때마다 노드 위치가 다름. 일관된 레이아웃이 필요한 분석에는 부적합.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-red-700 mb-2 text-lg">정량적 분석 어려움</h3>
+                    <p class="text-slate-700">시각적 거리와 실제 관련도가 완벽하게 일치하지 않음. 정확한 수치 분석은 다른 도구 필요.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-red-700 mb-2 text-lg">초기 조건 민감성</h3>
+                    <p class="text-slate-700">Force 파라미터(반발력, 연결거리 등)에 따라 결과가 크게 달라짐. 세팅이 까다로움.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-red-700 mb-2 text-lg">시계열 데이터 미지원</h3>
+                    <p class="text-slate-700">정적 스냅샷만 보여줌. 종목 가격 추이나 수익률 같은 시계열 정보는 별도 표현 필요.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-red-700 mb-2 text-lg">모바일 최적화 부족</h3>
+                    <p class="text-slate-700">대규모 캔버스라 모바일에서 상호작용이 불편. 반응형 디자인 구현이 복잡.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const width = document.getElementById('viz').clientWidth;
+        const height = 700;
+        const THEME_COLOR = "#ccff00";
+
+        const data = {
+            nodes: [
+                // 핵심 테마 노드들 (6개)
+                { id: "중동전쟁", type: "theme", r: 32, color: THEME_COLOR },
+                { id: "에너지위기", type: "theme", r: 26, color: THEME_COLOR },
+                { id: "인프라재건", type: "theme", r: 24, color: THEME_COLOR },
+                { id: "우주항공", type: "theme", r: 20, color: THEME_COLOR },
+                { id: "식량위기", type: "theme", r: 19, color: THEME_COLOR },
+                { id: "사이버보안", type: "theme", r: 18, color: THEME_COLOR },
+
+                // 방산/항공 그룹 (8개)
+                { id: "한화에어로", type: "stock", r: 14, color: "#ef4444", theme: "방산" },
+                { id: "LIG넥스원", type: "stock", r: 13, color: "#ef4444", theme: "방산" },
+                { id: "KAI", type: "stock", r: 13, color: "#ef4444", theme: "방산" },
+                { id: "현대로템", type: "stock", r: 11, color: "#ef4444", theme: "방산" },
+                { id: "풍산", type: "stock", r: 10, color: "#ef4444", theme: "방산" },
+                { id: "대우조선", type: "stock", r: 11, color: "#ef4444", theme: "방산" },
+                { id: "ADD", type: "stock", r: 12, color: "#ef4444", theme: "방산" },
+                { id: "원풍모터스", type: "stock", r: 9, color: "#ef4444", theme: "방산" },
+
+                // 에너지 그룹 (8개)
+                { id: "S-Oil", type: "stock", r: 14, color: "#fbbf24", theme: "에너지" },
+                { id: "SK이노베이션", type: "stock", r: 13, color: "#fbbf24", theme: "에너지" },
+                { id: "한국석유", type: "stock", r: 10, color: "#fbbf24", theme: "에너지" },
+                { id: "에스케이E&S", type: "stock", r: 11, color: "#fbbf24", theme: "에너지" },
+                { id: "GS칼텍스", type: "stock", r: 12, color: "#fbbf24", theme: "에너지" },
+                { id: "대한유화", type: "stock", r: 9, color: "#fbbf24", theme: "에너지" },
+                { id: "현대오일뱅크", type: "stock", r: 11, color: "#fbbf24", theme: "에너지" },
+                { id: "한국전력", type: "stock", r: 13, color: "#fbbf24", theme: "에너지" },
+
+                // 건설/인프라 그룹 (7개)
+                { id: "현대건설", type: "stock", r: 15, color: "#34d399", theme: "건설" },
+                { id: "삼성물산", type: "stock", r: 14, color: "#34d399", theme: "건설" },
+                { id: "대림산업", type: "stock", r: 12, color: "#34d399", theme: "건설" },
+                { id: "GS건설", type: "stock", r: 11, color: "#34d399", theme: "건설" },
+                { id: "포스코", type: "stock", r: 14, color: "#34d399", theme: "건설" },
+                { id: "현대일렉트로", type: "stock", r: 10, color: "#34d399", theme: "건설" },
+                { id: "SK건설", type: "stock", r: 10, color: "#34d399", theme: "건설" },
+
+                // 물류/해운 그룹 (5개)
+                { id: "HMM", type: "stock", r: 14, color: "#22d3ee", theme: "물류" },
+                { id: "대한항공", type: "stock", r: 13, color: "#22d3ee", theme: "물류" },
+                { id: "팬오션", type: "stock", r: 11, color: "#22d3ee", theme: "물류" },
+                { id: "한진칼", type: "stock", r: 12, color: "#22d3ee", theme: "물류" },
+                { id: "CJ대한통운", type: "stock", r: 13, color: "#22d3ee", theme: "물류" },
+
+                // 식량/비료 그룹 (4개)
+                { id: "한일사료", type: "stock", r: 10, color: "#a78bfa", theme: "식량" },
+                { id: "남해화학", type: "stock", r: 10, color: "#a78bfa", theme: "식량" },
+                { id: "영화케미칼", type: "stock", r: 9, color: "#a78bfa", theme: "식량" },
+                { id: "케이씨씨", type: "stock", r: 10, color: "#a78bfa", theme: "식량" },
+
+                // 보안/IT 그룹 (3개)
+                { id: "안랩", type: "stock", r: 11, color: "#ec4899", theme: "보안" },
+                { id: "윈스", type: "stock", r: 9, color: "#ec4899", theme: "보안" },
+                { id: "신한DS", type: "stock", r: 10, color: "#ec4899", theme: "보안" }
+            ],
+            links: [
+                // 중동전쟁 연결 (중심 테마)
+                { source: "중동전쟁", target: "한화에어로", value: 9 },
+                { source: "중동전쟁", target: "KAI", value: 10 },
+                { source: "중동전쟁", target: "LIG넥스원", value: 8 },
+                { source: "중동전쟁", target: "S-Oil", value: 10 },
+                { source: "중동전쟁", target: "HMM", value: 9 },
+                { source: "중동전쟁", target: "한국석유", value: 8 },
+                { source: "중동전쟁", target: "대한항공", value: 6 },
+                { source: "중동전쟁", target: "현대건설", value: 6 },
+
+                // 에너지위기 연결
+                { source: "에너지위기", target: "S-Oil", value: 10 },
+                { source: "에너지위기", target: "SK이노베이션", value: 9 },
+                { source: "에너지위기", target: "GS칼텍스", value: 8 },
+                { source: "에너지위기", target: "한국전력", value: 9 },
+                { source: "에너지위기", target: "한국석유", value: 9 },
+                { source: "에너지위기", target: "대한항공", value: 4 }, // 부정적 영향
+                { source: "에너지위기", target: "대림산업", value: 3 },
+                { source: "에너지위기", target: "CJ대한통운", value: 5 },
+
+                // 인프라재건 연결
+                { source: "인프라재건", target: "현대건설", value: 10 },
+                { source: "인프라재건", target: "삼성물산", value: 9 },
+                { source: "인프라재건", target: "포스코", value: 8 },
+                { source: "인프라재건", target: "대림산업", value: 8 },
+                { source: "인프라재건", target: "GS건설", value: 7 },
+                { source: "인프라재건", target: "현대일렉트로", value: 6 },
+                { source: "인프라재건", target: "CJ대한통운", value: 5 },
+
+                // 우주항공 연결
+                { source: "우주항공", target: "한화에어로", value: 10 },
+                { source: "우주항공", target: "KAI", value: 11 },
+                { source: "우주항공", target: "ADD", value: 9 },
+                { source: "우주항공", target: "LIG넥스원", value: 7 },
+                { source: "우주항공", target: "한국전력", value: 4 },
+
+                // 식량위기 연결
+                { source: "식량위기", target: "한일사료", value: 9 },
+                { source: "식량위기", target: "남해화학", value: 8 },
+                { source: "식량위기", target: "영화케미칼", value: 7 },
+                { source: "식량위기", target: "케이씨씨", value: 7 },
+                { source: "식량위기", target: "중동전쟁", value: 5 },
+
+                // 사이버보안 연결
+                { source: "사이버보안", target: "안랩", value: 10 },
+                { source: "사이버보안", target: "윈스", value: 8 },
+                { source: "사이버보안", target: "신한DS", value: 9 },
+                { source: "사이버보안", target: "중동전쟁", value: 4 }, // 사이버전 이슈
+                { source: "사이버보안", target: "한국전력", value: 3 }
+            ]
+        };
+
+        const svg = d3.select("#viz").append("svg")
+            .attr("width", width).attr("height", height);
+
+        // 물리 엔진 설정
+        const simulation = d3.forceSimulation(data.nodes)
+            .force("link", d3.forceLink(data.links)
+                .id(d => d.id)
+                .distance(d => d.target.type === 'theme' ? 100 : 120))
+            .force("charge", d3.forceManyBody().strength(-500))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(d => d.r + 8));
+
+        // 연결선
+        const link = svg.append("g")
+            .selectAll("line")
+            .data(data.links)
+            .join("line")
+            .attr("class", "link")
+            .attr("stroke-width", d => Math.sqrt(d.value) * 1.2);
+
+        // 노드 그룹
+        const node = svg.append("g")
+            .selectAll("g")
+            .data(data.nodes)
+            .join("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        // 노드 원형
+        node.append("circle")
+            .attr("r", d => d.r)
+            .attr("fill", d => d.color)
+            .attr("stroke", d => d.type === 'theme' ? "#000" : "#fff")
+            .attr("stroke-width", d => d.type === 'theme' ? 2 : 2)
+            .on("mouseover", (e, d) => {
+                d3.select("#tooltip").style("opacity", 1).html(`
+                    <div class="font-bold text-base">${d.id}</div>
+                    <div class="text-xs opacity-80">${d.type === 'theme' ? '▪️ 핵심 테마' : '▪️ 주식 종목 (' + (d.theme || '기타') + ')'}</div>
+                `);
+            })
+            .on("mousemove", (e) => {
+                d3.select("#tooltip")
+                    .style("left", (e.pageX + 15) + "px")
+                    .style("top", (e.pageY - 15) + "px");
+            })
+            .on("mouseout", () => d3.select("#tooltip").style("opacity", 0));
+
+        // 텍스트 라벨
+        node.append("text")
+            .attr("class", d => d.type === 'theme' ? "theme-label" : "label")
+            .attr("dy", d => d.type === 'theme' ? 4 : d.r + 12)
+            .attr("text-anchor", "middle")
+            .text(d => d.id);
+
+        // 틱(Tick) 애니메이션
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        // 드래그 제어 함수
+        function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+        function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+
+        // 반응형 처리
+        window.addEventListener("resize", () => {
+            const newWidth = document.getElementById('viz').clientWidth;
+            svg.attr("width", newWidth);
+            simulation.force("center", d3.forceCenter(newWidth / 2, height / 2)).alpha(0.3).restart();
+        });
+    </script>
+</body>
+</html>

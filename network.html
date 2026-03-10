@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주식 네트워크 분석 - 삼성전자 중심</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); color: #1e293b; font-family: 'Segoe UI', sans-serif; }
+        .header { background: white; border-bottom: 2px solid #e2e8f0; padding: 20px 0; }
+        .chart-container { background: white; border-radius: 12px; position: relative; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .node circle { cursor: pointer; transition: all 0.2s ease; }
+        .node circle:hover { filter: brightness(1.2); stroke-width: 3px !important; }
+        .link { stroke: #cbd5e1; stroke-opacity: 0.5; }
+        .label { font-size: 9px; fill: #475569; pointer-events: none; font-weight: 600; }
+        .tooltip { position: absolute; padding: 10px 14px; background: #1e293b; color: white; border-radius: 6px; opacity: 0; font-size: 11px; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: opacity 0.2s; }
+        .menu-btn { padding: 10px 20px; margin-right: 8px; margin-bottom: 8px; border-radius: 8px; background: #f1f5f9; border: 2px solid #e2e8f0; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 14px; }
+        .menu-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .menu-btn:hover { border-color: #3b82f6; }
+        .description { background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-top: 20px; line-height: 1.8; }
+        .center-node circle { stroke-width: 3px !important; }
+        .parent-node circle { stroke-width: 2px; }
+        .depth-2 circle { opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <!-- 헤더 및 메뉴 -->
+    <div class="header">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">주식 네트워크 분석</h1>
+            <p class="text-slate-600 mb-6">삼성전자를 중심으로 본 4가지 분석 전략</p>
+            <div class="flex flex-wrap gap-2">
+                <button class="menu-btn active" onclick="switchStrategy(1)">1️⃣ 공급망 분석</button>
+                <button class="menu-btn" onclick="switchStrategy(2)">2️⃣ 상관계수</button>
+                <button class="menu-btn" onclick="switchStrategy(3)">3️⃣ 기관 매수</button>
+                <button class="menu-btn" onclick="switchStrategy(4)">4️⃣ 거래량상관</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 시각화 영역 -->
+    <div class="max-w-6xl mx-auto mt-8">
+        <div id="viz" class="chart-container w-full h-[600px] mb-8"></div>
+        <div id="tooltip" class="tooltip"></div>
+
+        <!-- 설명 섹션 -->
+        <div id="description" class="description">
+            <p id="desc-text" class="text-slate-700"></p>
+        </div>
+    </div>
+
+    <script>
+        const width = document.getElementById('viz').clientWidth;
+        const height = 600;
+        let currentStrategy = 1;
+        let simulation = null;
+        let svg = null;
+
+        // 4가지 전략 데이터
+        const strategies = {
+            1: {
+                title: "공급망 기반 낙수효과 및 병목현상 분석",
+                description: "삼성전자는 다양한 부품을 공급받습니다. <b>1단계: 직접 공급사</b>(삼성디스플레이, SK하이닉스, LG화학 등)와 <b>2단계: 그들의 공급처</b>(LCD소재사, 반도체장비사 등)를 표현합니다. 공급망 내 병목을 파악하고, 특정 기업에 대한 의존도가 높다면 그 회사의 생산 차질이 전체 산업에 미치는 파급 효과를 시각적으로 추적할 수 있습니다. 숨은 수혜주 발굴에 유용합니다.",
+                nodes: [
+                    // 중심
+                    { id: "삼성전자", type: "main", r: 22, color: "#3b82f6", depth: 0 },
+
+                    // 1단계: 직접 공급사
+                    { id: "삼성디스플레이", type: "supplier1", r: 14, color: "#60a5fa", depth: 1 },
+                    { id: "삼성SDI", type: "supplier1", r: 13, color: "#60a5fa", depth: 1 },
+                    { id: "SK하이닉스", type: "supplier1", r: 13, color: "#60a5fa", depth: 1 },
+                    { id: "LG화학", type: "supplier1", r: 12, color: "#60a5fa", depth: 1 },
+
+                    // 2단계: 공급처의 공급처
+                    { id: "LCD소재사", type: "supplier2", r: 10, color: "#93c5fd", depth: 2 },
+                    { id: "반도체장비사", type: "supplier2", r: 10, color: "#93c5fd", depth: 2 },
+                    { id: "배터리원료", type: "supplier2", r: 9, color: "#93c5fd", depth: 2 },
+                    { id: "화학소재", type: "supplier2", r: 9, color: "#93c5fd", depth: 2 }
+                ],
+                links: [
+                    // 삼성전자 → 1단계
+                    { source: "삼성전자", target: "삼성디스플레이", value: 10 },
+                    { source: "삼성전자", target: "삼성SDI", value: 9 },
+                    { source: "삼성전자", target: "SK하이닉스", value: 8 },
+                    { source: "삼성전자", target: "LG화학", value: 7 },
+
+                    // 1단계 → 2단계
+                    { source: "삼성디스플레이", target: "LCD소재사", value: 8 },
+                    { source: "삼성SDI", target: "배터리원료", value: 7 },
+                    { source: "SK하이닉스", target: "반도체장비사", value: 7 },
+                    { source: "LG화학", target: "화학소재", value: 6 }
+                ]
+            },
+            2: {
+                title: "업종 내 수익률 상관계수 네트워크",
+                description: "삼성전자와 <b>수익률이 높게 연동</b>(r ≥ 0.7)하는 종목들을 표현합니다. <b>반도체 사이클</b>: SK하이닉스(r=0.78), <b>IT 섹터</b>: NAVER(r=0.65), 카카오(r=0.58) 등 실제로 시장에서 '같은 주기'로 움직이는 테마를 발견할 수 있습니다. 이는 전통적인 업종 분류를 넘어 <b>포트폴리오의 분산 투자 효과</b>를 검증하고, 동반 하락 위험을 관리하는 데 활용됩니다.",
+                nodes: [
+                    { id: "삼성전자", type: "main", r: 22, color: "#ef4444" },
+                    { id: "SK하이닉스", type: "correlated", r: 14, color: "#f87171" },
+                    { id: "LG디스플레이", type: "correlated", r: 13, color: "#f87171" },
+                    { id: "NAVER", type: "correlated", r: 12, color: "#fca5a5" },
+                    { id: "삼성SDI", type: "correlated", r: 11, color: "#fca5a5" },
+                    { id: "카카오", type: "correlated", r: 10, color: "#fecaca" }
+                ],
+                links: [
+                    { source: "삼성전자", target: "SK하이닉스", value: 9 },
+                    { source: "삼성전자", target: "LG디스플레이", value: 8 },
+                    { source: "삼성전자", target: "NAVER", value: 7 },
+                    { source: "삼성전자", target: "삼성SDI", value: 7 },
+                    { source: "SK하이닉스", target: "LG디스플레이", value: 6 },
+                    { source: "NAVER", target: "카카오", value: 5 }
+                ]
+            },
+            3: {
+                title: "기관 및 외인 장바구니 동시 매수 네트워크",
+                description: "삼성전자는 <b>글로벌 기관투자자들의 대표적인 매수 대상</b>입니다. 국민연금, KIC, 블랙록, 뱅가드 등 여러 '스마트 머니'가 <b>공통으로 관심 가지는 종목</b>을 연결합니다. 네트워크가 조밀하게 형성된 종목은 신뢰도 높은 매수 시그널을 의미하며, <b>주요 투자자의 이탈</b>이 네트워크 전체의 약화로 이어지는지를 감시할 수 있습니다. 동반 매수 패턴을 통해 시장의 방향을 선제적으로 예측할 수 있습니다.",
+                nodes: [
+                    { id: "삼성전자", type: "main", r: 22, color: "#10b981" },
+                    { id: "국민연금", type: "investor", r: 14, color: "#34d399" },
+                    { id: "한국투자공사", type: "investor", r: 13, color: "#34d399" },
+                    { id: "블랙록", type: "investor", r: 13, color: "#6ee7b7" },
+                    { id: "뱅가드", type: "investor", r: 12, color: "#6ee7b7" },
+                    { id: "미국펀드", type: "investor", r: 11, color: "#a7f3d0" }
+                ],
+                links: [
+                    { source: "국민연금", target: "삼성전자", value: 10 },
+                    { source: "한국투자공사", target: "삼성전자", value: 9 },
+                    { source: "블랙록", target: "삼성전자", value: 8 },
+                    { source: "뱅가드", target: "삼성전자", value: 7 },
+                    { source: "미국펀드", target: "삼성전자", value: 6 },
+                    { source: "국민연금", target: "블랙록", value: 4 }
+                ]
+            },
+            4: {
+                title: "거래량 상관관계 분석: 세력 움직임 포착",
+                description: "두 종목의 <b>거래량 데이터로 상관계수(r)</b>를 계산하여 <b>같은 세력의 매매 패턴</b>을 추적합니다. 거래량 상관도가 높다면(r ≥ 0.7) 같은 기관이나 세력이 두 종목을 동시에 사고팔고 있다는 신호입니다. <b>삼성전자-SK하이닉스(r=0.92)</b>의 높은 상관도는 '반도체 섹터에 한번에 들어오는 대형 기관'을 의미합니다. 이를 통해 대규모 자금의 이동을 조기에 포착하고 <b>세력의 장바구니</b>를 분석할 수 있습니다.",
+                nodes: [
+                    { id: "삼성전자", type: "main", r: 22, color: "#f59e0b" },
+                    { id: "SK하이닉스", type: "volume_corr", r: 14, color: "#fbbf24" },
+                    { id: "LG디스플레이", type: "volume_corr", r: 13, color: "#fbbf24" },
+                    { id: "LG화학", type: "volume_corr", r: 12, color: "#fcd34d" },
+                    { id: "삼성SDI", type: "volume_corr", r: 11, color: "#fde68a" },
+                    { id: "SK이노베이션", type: "volume_corr", r: 10, color: "#fef3c7" }
+                ],
+                links: [
+                    { source: "삼성전자", target: "SK하이닉스", value: 9 },
+                    { source: "삼성전자", target: "LG디스플레이", value: 8 },
+                    { source: "삼성전자", target: "LG화학", value: 7 },
+                    { source: "삼성전자", target: "삼성SDI", value: 6 },
+                    { source: "SK하이닉스", target: "LG디스플레이", value: 5 }
+                ]
+            }
+        };
+
+        // 초기화
+        function initViz() {
+            d3.select("#viz svg").remove();
+            svg = d3.select("#viz").append("svg")
+                .attr("width", width).attr("height", height);
+        }
+
+        // 시각화 그리기
+        function drawNetwork(strategy) {
+            initViz();
+            const data = strategies[strategy];
+
+            // 물리 엔진
+            simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links)
+                    .id(d => d.id)
+                    .distance(120))
+                .force("charge", d3.forceManyBody().strength(-450))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(d => d.r + 8));
+
+            // 연결선
+            const link = svg.append("g")
+                .selectAll("line")
+                .data(data.links)
+                .join("line")
+                .attr("stroke", "#cbd5e1")
+                .attr("stroke-opacity", 0.5)
+                .attr("stroke-width", d => Math.sqrt(d.value) * 1.5);
+
+            // 노드 그룹
+            const node = svg.append("g")
+                .selectAll("g")
+                .data(data.nodes)
+                .join("g")
+                .attr("class", d => {
+                    if (d.type === 'main') return "center-node";
+                    if (d.type === 'supplier1' || d.type === 'investor') return "parent-node";
+                    if (d.depth === 2) return "depth-2";
+                    return "node";
+                })
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+
+            // 노드 원형
+            node.append("circle")
+                .attr("r", d => d.r)
+                .attr("fill", d => d.color)
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 2)
+                .on("mouseover", (e, d) => {
+                    d3.select("#tooltip").style("opacity", 1).html(`<strong>${d.id}</strong>`);
+                })
+                .on("mousemove", (e) => {
+                    d3.select("#tooltip")
+                        .style("left", (e.pageX + 15) + "px")
+                        .style("top", (e.pageY - 15) + "px");
+                })
+                .on("mouseout", () => d3.select("#tooltip").style("opacity", 0));
+
+            // 텍스트 라벨
+            node.append("text")
+                .attr("class", "label")
+                .attr("dy", d => d.r + 14)
+                .attr("text-anchor", "middle")
+                .text(d => d.id);
+
+            // 틱 애니메이션
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+
+            // 설명 업데이트
+            document.getElementById("desc-text").innerHTML = data.description;
+        }
+
+        // 드래그 함수
+        function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+        function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+
+        // 전략 전환
+        function switchStrategy(num) {
+            currentStrategy = num;
+            document.querySelectorAll(".menu-btn").forEach((btn, idx) => {
+                btn.classList.toggle("active", idx + 1 === num);
+            });
+            drawNetwork(num);
+        }
+
+        // 초기 로드
+        drawNetwork(1);
+
+        // 반응형
+        window.addEventListener("resize", () => {
+            const newWidth = document.getElementById('viz').clientWidth;
+            svg.attr("width", newWidth);
+            simulation.force("center", d3.forceCenter(newWidth / 2, height / 2)).alpha(0.3).restart();
+        });
+    </script>
+</body>
+</html>
