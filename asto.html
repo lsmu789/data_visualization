@@ -3,221 +3,1043 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HUG x ASTO | 청년주택 STO 플랫폼</title>
-    <!-- 외부 라이브러리: GSAP (애니메이션), D3.js (시각화) -->
+    <title>ASTO - 블록체인 기반 공유지분형 부동산 플랫폼</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100;400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0a0a0c;
+            --bg-color: #ffffff;
             --primary-color: #007aff;
-            --secondary-color: #5ac8fa;
+            --secondary-color: #00b8e6;
             --accent-color: #ff2d55;
-            --text-main: #ffffff;
-            --text-sub: #a1a1a6;
+            --text-main: #1a1a1a;
+            --text-sub: #666666;
+            --border-color: #e0e0e0;
+            --light-bg: #f5f7fa;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
         body {
             font-family: 'Pretendard', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             overflow-x: hidden;
-            line-height: 1.6;
         }
 
-        /* Full Page Sections */
+        /* Navigation Bar */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 40px;
+            z-index: 1000;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .nav-logo {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--primary-color);
+            margin-right: 60px;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            flex: 1;
+        }
+
+        .nav-item {
+            font-size: 0.95rem;
+            color: var(--text-sub);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            padding: 5px 0;
+        }
+
+        .nav-item:hover { color: var(--text-main); }
+        .nav-item.active { color: var(--primary-color); }
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary-color);
+        }
+
+        /* Sections */
         section {
-            height: 100vh;
+            min-height: 100vh;
             width: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 40px;
+            padding: 80px 40px;
             position: relative;
+        }
+
+        .section-content {
+            max-width: 1100px;
+            width: 100%;
+        }
+
+        h1 { font-size: 3.5rem; font-weight: 900; margin-bottom: 1rem; color: var(--text-main); }
+        h2 { font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-main); }
+        h3 { font-size: 1.5rem; font-weight: 600; margin: 1.5rem 0 1rem 0; color: var(--text-main); }
+        p { font-size: 1.1rem; color: var(--text-sub); line-height: 1.8; margin-bottom: 1rem; }
+
+        .highlight { color: var(--primary-color); font-weight: 600; }
+
+        /* Hero Section */
+        #slide1 { background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%); }
+
+        /* Diagram Styles */
+        .diagram-container {
+            background: var(--light-bg);
+            border-radius: 12px;
+            padding: 40px;
+            margin: 30px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        svg { display: block; margin: 0 auto; }
+
+        /* Table Styles */
+        .table-container {
+            margin: 30px 0;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:hover { background: var(--light-bg); }
+
+        /* Grid Layout */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .grid-item {
+            background: var(--light-bg);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .grid-item h3 { margin-top: 0; color: var(--primary-color); }
+        .grid-item ul { margin-left: 20px; }
+        .grid-item li { margin-bottom: 10px; }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .reveal {
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        footer {
+            background: var(--light-bg);
+            padding: 40px;
             text-align: center;
-        }
-
-        /* Typography */
-        h1 { font-size: 4rem; font-weight: 900; margin-bottom: 1rem; letter-spacing: -2px; }
-        h2 { font-size: 3rem; font-weight: 700; margin-bottom: 1.5rem; }
-        p { font-size: 1.25rem; color: var(--text-sub); max-width: 800px; margin-bottom: 2rem; }
-        .highlight { color: var(--primary-color); }
-
-        /* Section 1: Hero */
-        #hero {
-            background: radial-gradient(circle at center, #1c1c1e 0%, #0a0a0c 100%);
-        }
-        .scroll-indicator {
-            position: absolute;
-            bottom: 30px;
-            animation: bounce 2s infinite;
-            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color);
             color: var(--text-sub);
         }
 
-        /* Section 3: Partnership */
-        .partner-box {
+        /* Simulator Styles */
+        .simulator-box {
+            background: var(--light-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-item {
             display: flex;
-            gap: 50px;
-            align-items: center;
-            margin-top: 30px;
-        }
-        .logo-card {
-            background: #1c1c1e;
-            padding: 30px 50px;
-            border-radius: 20px;
-            border: 1px solid #333;
-            font-size: 2rem;
-            font-weight: 700;
+            flex-direction: column;
         }
 
-        /* Section 4: Chart */
-        #chart-container {
-            width: 500px;
-            height: 500px;
-            position: relative;
-        }
-        .chart-label {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-        .chart-label .value { font-size: 3rem; font-weight: 900; }
-
-        /* Animations */
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-            40% {transform: translateY(-10px);}
-            60% {transform: translateY(-5px);}
+        .input-item label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            color: var(--text-main);
         }
 
-        /* Custom UI */
-        .cta-button {
-            padding: 15px 40px;
+        .input-item input {
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem;
+            background: white;
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        .input-item input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .simulate-btn {
+            width: 100%;
+            padding: 14px;
             background: var(--primary-color);
             color: white;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 700;
-            transition: transform 0.3s ease;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Pretendard', sans-serif;
         }
-        .cta-button:hover { transform: scale(1.05); }
 
+        .simulate-btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
+        }
+
+        .result-section {
+            margin-top: 30px;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .result-category {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .result-category h4 {
+            margin: 0 0 15px 0;
+            font-size: 1.1rem;
+        }
+
+        .result-item {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            margin-bottom: 5px;
+        }
+
+        .result-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.5rem; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .nav-menu { gap: 15px; font-size: 0.85rem; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Section 1: Hero -->
-    <section id="hero">
-        <h1 class="reveal">청년의 꿈,<br><span class="highlight">조각 투자</span>로 집을 짓다</h1>
-        <p class="reveal">주거 사각지대에 놓인 청년들을 위한 HUG x ASTO의 혁신적인 금융 솔루션</p>
-        <div class="scroll-indicator">스크롤하여 시작하기</div>
-    </section>
-
-    <!-- Section 2: Problem & Solution -->
-    <section id="problem">
-        <h2 class="reveal">높아진 주거 장벽,<br>더 이상 꿈만 꿀 수 없습니다.</h2>
-        <p class="reveal">ASTO는 블록체인 기반 STO(토큰증권) 기술을 통해 대규모 자본 없이도 누구나 주택 지분을 소유하고, 청년들에게는 안정적인 주거 공간을 제공합니다.</p>
-    </section>
-
-    <!-- Section 3: Partnership -->
-    <section id="partnership">
-        <h2 class="reveal">공공과 기술의 만남</h2>
-        <div class="partner-box reveal">
-            <div class="logo-card" style="color: #005aab;">HUG</div>
-            <div style="font-size: 2rem; color: #555;">×</div>
-            <div class="logo-card" style="color: #00d4ff;">ASTO</div>
+    <nav id="navbar">
+        <div class="nav-logo">ASTO</div>
+        <div class="nav-menu">
+            <div class="nav-item active" data-section="slide1">핵심 아이디어</div>
+            <div class="nav-item" data-section="slide2">토큰화 구조</div>
+            <div class="nav-item" data-section="slide3">전체 플로우</div>
+            <div class="nav-item" data-section="slide4">수익 구조</div>
+            <div class="nav-item" data-section="slide5">확장 전략</div>
         </div>
-        <p class="reveal" style="margin-top: 2rem;">주택도시보증공사의 <span class="highlight">신뢰</span>와 ASTO의 <span class="highlight">기술력</span>이 결합된 주거 안정 거버넌스</p>
-    </section>
+    </nav>
 
-    <!-- Section 4: Financial Model -->
-    <section id="model">
-        <h2 class="reveal">40 : 60 핵심 금융 구조</h2>
-        <div id="chart-container" class="reveal">
-            <svg id="pie-chart"></svg>
-            <div class="chart-label">
-                <div class="value">40 : 60</div>
-                <div style="color: var(--text-sub);">Equity : STO</div>
+    <!-- Slide 1: Core Idea -->
+    <section id="slide1">
+        <div class="section-content">
+            <h1 class="reveal">ASTO</h1>
+            <p style="font-size: 1.3rem; margin-bottom: 30px;" class="reveal">블록체인 기반 공유지분형 부동산 플랫폼</p>
+
+            <div class="grid-2">
+                <div class="grid-item reveal">
+                    <h3>❌ 기존 부동산 문제</h3>
+                    <ul>
+                        <li><strong>높은 진입장벽</strong> - 수억 단위 자본 필요</li>
+                        <li><strong>낮은 유동성</strong> - 거래 기간 수개월</li>
+                        <li><strong>비효율적 구조</strong> - 중개사 중심</li>
+                    </ul>
+                    <h3 style="margin-top: 20px;">청년층 문제</h3>
+                    <ul>
+                        <li>높은 주거 비용</li>
+                        <li>자산 축적 기회 부족</li>
+                    </ul>
+                </div>
+
+                <div class="grid-item reveal">
+                    <h3>✅ ASTO 솔루션</h3>
+                    <p><strong>부동산 + 신탁수익증권 + 블록체인</strong></p>
+                    <p style="margin-top: 15px;">를 통해</p>
+                    <ul style="margin-top: 15px;">
+                        <li>✓ 낮은 진입 비용</li>
+                        <li>✓ 높은 유동성</li>
+                        <li>✓ 자동화된 거래</li>
+                        <li>✓ 투명한 구조</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="diagram-container reveal">
+                <h3 style="text-align: center; margin-top: 0;">핵심: 임대료 금융화</h3>
+                <svg width="100%" height="200" viewBox="0 0 600 150">
+                    <!-- Left side -->
+                    <rect x="20" y="50" width="100" height="50" fill="#e3f2fd" stroke="#007aff" stroke-width="2" rx="5"/>
+                    <text x="70" y="80" text-anchor="middle" font-size="14" font-weight="bold" fill="#007aff">청년</text>
+
+                    <!-- Rent arrow -->
+                    <line x1="120" y1="75" x2="170" y2="75" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="145" y="65" text-anchor="middle" font-size="12" fill="#666">임대료</text>
+
+                    <!-- Smart Contract -->
+                    <rect x="170" y="40" width="140" height="70" fill="#fff3e0" stroke="#ff9800" stroke-width="2" rx="5"/>
+                    <text x="240" y="75" text-anchor="middle" font-size="13" font-weight="bold" fill="#ff6f00">스마트컨트랙트</text>
+                    <text x="240" y="95" text-anchor="middle" font-size="11" fill="#ff6f00">자동 분배</text>
+
+                    <!-- Distribution arrows -->
+                    <line x1="310" y1="50" x2="380" y2="40" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <line x1="310" y1="75" x2="380" y2="75" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <line x1="310" y1="100" x2="380" y2="110" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- Investors -->
+                    <circle cx="420" cy="35" r="20" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
+                    <text x="420" y="40" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">투자자1</text>
+
+                    <circle cx="420" cy="75" r="20" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
+                    <text x="420" y="80" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">투자자2</text>
+
+                    <circle cx="420" cy="115" r="20" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
+                    <text x="420" y="120" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">투자자3</text>
+
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#666"/>
+                        </marker>
+                    </defs>
+                </svg>
+                <p style="text-align: center; margin-top: 20px; color: var(--primary-color); font-weight: 600;">기존: 임대료 → 집주인 | ASTO: 임대료 → 수백명 투자자</p>
             </div>
         </div>
-        <p class="reveal">자기자본 40%와 토큰증권 60% 발행을 통해<br>사업의 안정성과 투자 유동성을 동시에 확보합니다.</p>
     </section>
 
-    <!-- Section 5: Call to Action -->
-    <section id="cta">
-        <h1 class="reveal">혁신에 참여하세요</h1>
-        <p class="reveal">ASTO는 청년의 미래와 투자자의 가치를 연결합니다.</p>
-        <a href="#" class="cta-button reveal">프로젝트 상세 제안서 받기</a>
+    <!-- Slide 2: Tokenization -->
+    <section id="slide2">
+        <div class="section-content">
+            <h1 class="reveal">부동산 토큰화 구조</h1>
+
+            <div class="diagram-container reveal">
+                <h3 style="text-align: center; margin-top: 0;">법적 구조</h3>
+                <svg width="100%" height="280" viewBox="0 0 400 300">
+                    <!-- Step 1 -->
+                    <rect x="50" y="20" width="100" height="50" fill="#e3f2fd" stroke="#007aff" stroke-width="2" rx="5"/>
+                    <text x="100" y="50" text-anchor="middle" font-size="13" font-weight="bold" fill="#007aff">부동산</text>
+
+                    <!-- Arrow -->
+                    <line x1="100" y1="70" x2="100" y2="100" stroke="#007aff" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- Step 2 -->
+                    <rect x="50" y="100" width="100" height="50" fill="#f3e5f5" stroke="#7c4dff" stroke-width="2" rx="5"/>
+                    <text x="100" y="130" text-anchor="middle" font-size="13" font-weight="bold" fill="#7c4dff">신탁사</text>
+
+                    <!-- Arrow -->
+                    <line x1="100" y1="150" x2="100" y2="180" stroke="#7c4dff" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- Step 3 -->
+                    <rect x="50" y="180" width="100" height="50" fill="#fce4ec" stroke="#ec407a" stroke-width="2" rx="5"/>
+                    <text x="100" y="210" text-anchor="middle" font-size="13" font-weight="bold" fill="#ec407a">수익증권</text>
+
+                    <!-- Arrow -->
+                    <line x1="100" y1="230" x2="100" y2="260" stroke="#ec407a" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- Step 4 -->
+                    <rect x="50" y="260" width="100" height="50" fill="#e0f2f1" stroke="#00897b" stroke-width="2" rx="5"/>
+                    <text x="100" y="290" text-anchor="middle" font-size="13" font-weight="bold" fill="#00897b">블록체인</text>
+
+                    <!-- Right side info -->
+                    <rect x="200" y="20" width="180" height="280" fill="#f9f9f9" stroke="#e0e0e0" stroke-width="1" rx="5"/>
+                    <text x="210" y="45" font-size="12" font-weight="bold" fill="#333">신탁수익증권</text>
+                    <text x="210" y="65" font-size="11" fill="#666">기반</text>
+
+                    <text x="210" y="95" font-size="12" font-weight="bold" fill="#333">디지털 자산</text>
+
+                    <text x="210" y="130" font-size="11" fill="#333">✓ 법적 근거</text>
+                    <text x="210" y="150" font-size="11" fill="#333">신탁법</text>
+
+                    <text x="210" y="180" font-size="11" fill="#333">✓ 규제 기반</text>
+                    <text x="210" y="200" font-size="11" fill="#333">자본시장법</text>
+
+                    <text x="210" y="230" font-size="11" fill="#333">✓ 기술 기반</text>
+                    <text x="210" y="250" font-size="11" fill="#333">블록체인</text>
+
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#333"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <h3 class="reveal">토큰 시스템 (3종 구조)</h3>
+            <div class="table-container reveal">
+                <table>
+                    <tr>
+                        <th style="width: 30%;">토큰</th>
+                        <th style="width: 70%;">역할</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Property Token</strong></td>
+                        <td>부동산 지분 토큰 - 청년 20%, 투자자 80%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Rent Payment Token (USDT)</strong></td>
+                        <td>임대료 자동 지급 및 분배</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Platform Token</strong></td>
+                        <td>플랫폼 수수료 및 거버넌스</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3 class="reveal">부동산 토큰 예시</h3>
+            <div class="grid-2 reveal">
+                <div class="grid-item">
+                    <h3 style="color: var(--primary-color); margin-top: 0;">ABC Building</h3>
+                    <p><strong>총 가치:</strong> 10억 원</p>
+                    <p><strong>발행 토큰:</strong> 10,000개</p>
+                    <p style="margin-top: 20px; font-size: 0.9rem;">1 토큰 = 100만 원 상당</p>
+                </div>
+                <div class="grid-item">
+                    <h3 style="color: var(--primary-color); margin-top: 0;">지분 구조</h3>
+                    <p><strong>청년:</strong> 20% (2,000 토큰)</p>
+                    <p><strong>투자자:</strong> 80% (8,000 토큰)</p>
+                    <p style="margin-top: 20px; color: var(--secondary-color); font-weight: 600;">블록체인 기반 자동 분배</p>
+                </div>
+            </div>
+        </div>
     </section>
+
+    <!-- Slide 3: Full Flow -->
+    <section id="slide3">
+        <div class="section-content">
+            <h1 class="reveal">플랫폼 전체 운영 플로우</h1>
+
+            <div class="diagram-container reveal">
+                <h3 style="text-align: center; margin-top: 0;">4방향 이해관계자 플로우</h3>
+                <svg width="100%" height="350" viewBox="0 0 600 350">
+                    <!-- Center Platform -->
+                    <rect x="200" y="120" width="200" height="110" fill="#fff3e0" stroke="#ff9800" stroke-width="3" rx="8"/>
+                    <text x="300" y="160" text-anchor="middle" font-size="16" font-weight="bold" fill="#ff6f00">ASTO 플랫폼</text>
+                    <text x="300" y="185" text-anchor="middle" font-size="12" fill="#ff6f00">토큰화 / 거래 / 관리</text>
+                    <text x="300" y="205" text-anchor="middle" font-size="12" fill="#ff6f00">자동 분배</text>
+
+                    <!-- Investors (Top) -->
+                    <rect x="225" y="20" width="150" height="60" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="5"/>
+                    <text x="300" y="45" text-anchor="middle" font-size="14" font-weight="bold" fill="#2e7d32">투자자</text>
+                    <text x="300" y="65" text-anchor="middle" font-size="11" fill="#558b2f">수익 + 매각차익</text>
+
+                    <!-- Arrow from investors to platform -->
+                    <line x1="300" y1="80" x2="300" y2="120" stroke="#4caf50" stroke-width="2.5" marker-end="url(#arrow-green)"/>
+                    <text x="320" y="100" font-size="11" fill="#4caf50">투자</text>
+
+                    <!-- Arrow from platform to investors -->
+                    <line x1="280" y1="120" x2="280" y2="80" stroke="#4caf50" stroke-width="2.5" stroke-dasharray="5,5" marker-end="url(#arrow-green)"/>
+                    <text x="260" y="100" font-size="11" fill="#4caf50">배당</text>
+
+                    <!-- Youth (Left) -->
+                    <rect x="20" y="150" width="150" height="60" fill="#e3f2fd" stroke="#007aff" stroke-width="2" rx="5"/>
+                    <text x="95" y="175" text-anchor="middle" font-size="14" font-weight="bold" fill="#0052cc">청년</text>
+                    <text x="95" y="195" text-anchor="middle" font-size="11" fill="#1565c0">거주 + 임대료</text>
+
+                    <!-- Arrow from youth to platform -->
+                    <line x1="170" y1="175" x2="200" y2="165" stroke="#007aff" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+                    <text x="175" y="155" font-size="11" fill="#007aff">임대료</text>
+
+                    <!-- Arrow from platform to youth -->
+                    <line x1="200" y1="195" x2="170" y2="185" stroke="#007aff" stroke-width="2.5" stroke-dasharray="5,5" marker-end="url(#arrow-blue)"/>
+                    <text x="160" y="210" font-size="11" fill="#007aff">관리</text>
+
+                    <!-- Property (Right) -->
+                    <rect x="430" y="150" width="150" height="60" fill="#fce4ec" stroke="#ec407a" stroke-width="2" rx="5"/>
+                    <text x="505" y="175" text-anchor="middle" font-size="14" font-weight="bold" fill="#ad1457">부동산</text>
+                    <text x="505" y="195" text-anchor="middle" font-size="11" fill="#c2185b">자산 기반</text>
+
+                    <!-- Arrow from platform to property -->
+                    <line x1="400" y1="165" x2="430" y2="175" stroke="#ec407a" stroke-width="2.5" marker-end="url(#arrow-pink)"/>
+                    <text x="410" y="155" font-size="11" fill="#ec407a">관리</text>
+
+                    <!-- Arrow from property to platform -->
+                    <line x1="430" y1="195" x2="400" y2="185" stroke="#ec407a" stroke-width="2.5" stroke-dasharray="5,5" marker-end="url(#arrow-pink)"/>
+                    <text x="405" y="215" font-size="11" fill="#ec407a">정보</text>
+
+                    <!-- Trust Company (Bottom) -->
+                    <rect x="200" y="280" width="200" height="60" fill="#f3e5f5" stroke="#7c4dff" stroke-width="2" rx="5"/>
+                    <text x="300" y="305" text-anchor="middle" font-size="14" font-weight="bold" fill="#512da8">신탁사</text>
+                    <text x="300" y="325" text-anchor="middle" font-size="11" fill="#6a1b9a">자산 관리 / 법적 담당</text>
+
+                    <!-- Arrow from platform to trust -->
+                    <line x1="300" y1="230" x2="300" y2="280" stroke="#7c4dff" stroke-width="2.5" marker-end="url(#arrow-purple)"/>
+                    <text x="320" y="255" font-size="11" fill="#7c4dff">관리</text>
+
+                    <!-- Arrow from trust to platform -->
+                    <line x1="280" y1="280" x2="280" y2="230" stroke="#7c4dff" stroke-width="2.5" stroke-dasharray="5,5" marker-end="url(#arrow-purple)"/>
+                    <text x="260" y="255" font-size="11" fill="#7c4dff">지시</text>
+
+                    <defs>
+                        <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#4caf50"/>
+                        </marker>
+                        <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#007aff"/>
+                        </marker>
+                        <marker id="arrow-pink" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#ec407a"/>
+                        </marker>
+                        <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#7c4dff"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <h3 class="reveal">5가지 프로세스</h3>
+            <div class="grid-2 reveal">
+                <div class="grid-item">
+                    <h3>1️⃣ 자산 토큰화</h3>
+                    <p>부동산 확보 → 신탁사 설정 → 수익증권 발행 → ASTO 토큰 발행</p>
+                </div>
+                <div class="grid-item">
+                    <h3>2️⃣ 투자 구조</h3>
+                    <p>투자자 → 토큰 구매 → 부동산 지분 보유</p>
+                </div>
+                <div class="grid-item">
+                    <h3>3️⃣ 거주 구조</h3>
+                    <p>청년 → 20% 지분 보유 → 주택 실거주</p>
+                </div>
+                <div class="grid-item">
+                    <h3>4️⃣ 임대료 흐름 ⭐</h3>
+                    <p>청년 → 임대료 납부 → 스마트컨트랙트 → 투자자 자동 분배</p>
+                </div>
+            </div>
+
+            <div class="grid-item reveal" style="margin: 30px 0;">
+                <h3>5️⃣ 매각 발생</h3>
+                <p>부동산 매각 → 신탁사 → ASTO 플랫폼 → 토큰 비율에 따라 자동 분배</p>
+                <p style="color: var(--primary-color); font-weight: 600; margin-top: 15px;">USDT 또는 법정화폐로 지급 가능</p>
+            </div>
+
+            <!-- Simulator -->
+            <h3 class="reveal" style="margin-top: 50px;">📊 수익성 시뮬레이터</h3>
+            <p class="reveal" style="text-align: center; color: var(--text-sub);">부동산 가격, 지분율, 임대료 등을 입력하여 수익을 계산해보세요</p>
+
+            <div class="simulator-box reveal">
+                <div class="input-grid">
+                    <div class="input-item">
+                        <label>부동산 가격 (원)</label>
+                        <input type="number" id="housePrice" value="500000000" placeholder="예: 500000000">
+                    </div>
+                    <div class="input-item">
+                        <label>청년 지분 비율</label>
+                        <input type="number" id="youthRatio" value="0.2" step="0.05" min="0.01" max="0.99" placeholder="예: 0.2">
+                    </div>
+                    <div class="input-item">
+                        <label>월 임대료 (원)</label>
+                        <input type="number" id="monthlyFee" value="3000000" placeholder="예: 3000000">
+                    </div>
+                    <div class="input-item">
+                        <label>투자자 투자금 (원)</label>
+                        <input type="number" id="investAmount" value="200000000" placeholder="예: 200000000">
+                    </div>
+                    <div class="input-item">
+                        <label>N년 후 매각 가격 (원)</label>
+                        <input type="number" id="salePrice" value="550000000" placeholder="예: 550000000">
+                    </div>
+                    <div class="input-item">
+                        <label>보유 기간 (년)</label>
+                        <input type="number" id="years" value="5" min="1" max="30">
+                    </div>
+                    <div class="input-item">
+                        <label>토큰 발행 수수료율 (%)</label>
+                        <input type="number" id="issuanceFee" value="5" step="0.1" min="0">
+                    </div>
+                    <div class="input-item">
+                        <label>운용 수수료율 (%)</label>
+                        <input type="number" id="managementFee" value="10" step="0.1" min="0">
+                    </div>
+                </div>
+                <button onclick="simulate()" class="simulate-btn">🚀 시뮬레이션 실행</button>
+
+                <div id="resultSection" class="result-section" style="display:none;">
+                    <h3 style="margin-top: 40px; text-align: center;">📈 결과</h3>
+
+                    <div class="result-grid">
+                        <div class="result-category">
+                            <h4 style="color: #2e7d32; border-bottom: 2px solid #4caf50; padding-bottom: 10px;">👨‍💼 청년</h4>
+                            <div class="result-item">
+                                <div class="result-label">초기 투자금</div>
+                                <div class="result-value" id="youthEquity">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">매각 수익</div>
+                                <div class="result-value" id="youthGain">-</div>
+                            </div>
+                        </div>
+
+                        <div class="result-category">
+                            <h4 style="color: #0052cc; border-bottom: 2px solid #007aff; padding-bottom: 10px;">💰 투자자</h4>
+                            <div class="result-item">
+                                <div class="result-label">투자 금액</div>
+                                <div class="result-value" id="investDisplay">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">분기 배당</div>
+                                <div class="result-value" id="quarterly">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">총 배당 (N년)</div>
+                                <div class="result-value" id="totalDividend">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">매각 수익</div>
+                                <div class="result-value" id="investSaleGain">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">총 수익</div>
+                                <div class="result-value" id="totalProfit">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">연환산 수익률</div>
+                                <div class="result-value" id="annualReturn">-</div>
+                            </div>
+                        </div>
+
+                        <div class="result-category">
+                            <h4 style="color: #ad1457; border-bottom: 2px solid #ec407a; padding-bottom: 10px;">🏢 ASTO</h4>
+                            <div class="result-item">
+                                <div class="result-label">발행 수수료</div>
+                                <div class="result-value" id="issuanceFeeResult">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">운용 수수료</div>
+                                <div class="result-value" id="managementFeeResult">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">총 수익</div>
+                                <div class="result-value" id="companyRevenue">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 4: Revenue Model -->
+    <section id="slide4">
+        <div class="section-content">
+            <h1 class="reveal">이해관계자 수익 구조</h1>
+
+            <h3 class="reveal">👨‍💼 청년</h3>
+            <div class="grid-2 reveal">
+                <div class="grid-item">
+                    <h3 style="color: #4caf50; margin-top: 0;">수익</h3>
+                    <ul>
+                        <li>낮은 초기 비용으로 주거 확보</li>
+                        <li>부동산 매각 차익</li>
+                    </ul>
+                </div>
+                <div class="grid-item">
+                    <h3 style="color: #ff6f00; margin-top: 0;">리스크</h3>
+                    <ul>
+                        <li>임대료 미납 시 지분 감소</li>
+                        <li>30일 경과 시 자동 청산</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 class="reveal">💰 투자자</h3>
+            <div class="grid-2 reveal">
+                <div class="grid-item">
+                    <h3 style="color: #4caf50; margin-top: 0;">수익</h3>
+                    <ul>
+                        <li>월 임대료 수익 (자동 분배)</li>
+                        <li>부동산 매각 차익</li>
+                        <li>높은 유동성 (토큰 거래)</li>
+                    </ul>
+                </div>
+                <div class="grid-item">
+                    <h3 style="color: #ff6f00; margin-top: 0;">리스크</h3>
+                    <ul>
+                        <li>임대료 미납</li>
+                        <li>공실 리스크</li>
+                        <li>부동산 가격 하락</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 class="reveal">🏢 ASTO 플랫폼</h3>
+            <div class="table-container reveal">
+                <table>
+                    <tr>
+                        <th>수익원</th>
+                        <th>내용</th>
+                        <th>규모</th>
+                    </tr>
+                    <tr>
+                        <td><strong>토큰화 수수료</strong></td>
+                        <td>자산 토큰화 시 수수료</td>
+                        <td>자산의 약 1%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>운용 수수료</strong></td>
+                        <td>자산 관리 및 운영</td>
+                        <td>연 0.5~1%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>거래 수수료</strong></td>
+                        <td>토큰 거래 시</td>
+                        <td>거래액의 0.1%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>플랫폼 수수료</strong></td>
+                        <td>임대료 관리</td>
+                        <td>수익의 2~3%</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="diagram-container reveal">
+                <h3 style="text-align: center; margin-top: 0;">임대료 미납 처리</h3>
+                <svg width="100%" height="200" viewBox="0 0 600 150">
+                    <rect x="20" y="40" width="90" height="60" fill="#e3f2fd" stroke="#007aff" stroke-width="2" rx="5"/>
+                    <text x="65" y="70" text-anchor="middle" font-size="12" font-weight="bold" fill="#007aff">청년 지분</text>
+                    <text x="65" y="92" text-anchor="middle" font-size="13" font-weight="bold" fill="#0052cc">20%</text>
+
+                    <line x1="110" y1="70" x2="150" y2="70" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="130" y="60" text-anchor="middle" font-size="11" fill="#666">30일 경과</text>
+
+                    <rect x="150" y="40" width="90" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="2" rx="5"/>
+                    <text x="195" y="70" text-anchor="middle" font-size="12" font-weight="bold" fill="#ff6f00">자동 감소</text>
+                    <text x="195" y="92" text-anchor="middle" font-size="13" font-weight="bold" fill="#e65100">18~19%</text>
+
+                    <line x1="240" y1="70" x2="280" y2="70" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="260" y="60" text-anchor="middle" font-size="11" fill="#666">분배</text>
+
+                    <rect x="280" y="40" width="90" height="60" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="5"/>
+                    <text x="325" y="70" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">투자자 증가</text>
+                    <text x="325" y="92" text-anchor="middle" font-size="13" font-weight="bold" fill="#1b5e20">1~2%</text>
+
+                    <text x="300" y="130" text-anchor="middle" font-size="12" fill="#666">자동 청산으로 투자자 보호</text>
+
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#666"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 5: Expansion -->
+    <section id="slide5">
+        <div class="section-content">
+            <h1 class="reveal">플랫폼 확장 전략</h1>
+
+            <h3 class="reveal">1️⃣ 부동산 Pool 구조</h3>
+            <div class="grid-2 reveal">
+                <div class="grid-item">
+                    <h3 style="color: var(--primary-color); margin-top: 0;">초기</h3>
+                    <p><strong>단일 건물 토큰</strong></p>
+                    <p style="color: var(--text-sub);">하나의 부동산 = 하나의 토큰</p>
+                </div>
+                <div class="grid-item">
+                    <h3 style="color: var(--primary-color); margin-top: 0;">확장</h3>
+                    <p><strong>부동산 펀드 / REITs형</strong></p>
+                    <p style="color: var(--text-sub);">여러 부동산을 하나의 토큰으로 묶음</p>
+                </div>
+            </div>
+
+            <h3 class="reveal">2️⃣ 글로벌 자산 토큰화</h3>
+            <div style="margin: 30px 0;">
+                <div class="grid-item reveal">
+                    <h3 style="color: var(--primary-color); margin-top: 0;">가능한 확장 영역</h3>
+                    <ul>
+                        <li>🌍 <strong>해외 부동산</strong> - 미국, 일본, 싱가포르 등</li>
+                        <li>🏢 <strong>상업용 건물</strong> - 오피스, 상가, 호텔</li>
+                        <li>🖥️ <strong>데이터센터</strong> - 클라우드 인프라</li>
+                        <li>⚡ <strong>인프라 자산</strong> - 태양광, 풍력 발전소</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 class="reveal">3️⃣ 장외거래소(ATS) 대응</h3>
+            <div class="diagram-container reveal">
+                <svg width="100%" height="180" viewBox="0 0 600 150">
+                    <!-- Current -->
+                    <text x="50" y="25" font-size="12" font-weight="bold" fill="#333">현재</text>
+                    <rect x="20" y="35" width="130" height="50" fill="#e3f2fd" stroke="#007aff" stroke-width="2" rx="5"/>
+                    <text x="85" y="65" text-anchor="middle" font-size="12" font-weight="bold" fill="#007aff">ASTO 플랫폼</text>
+
+                    <!-- Arrow -->
+                    <line x1="150" y1="60" x2="190" y2="60" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- Future -->
+                    <text x="400" y="25" font-size="12" font-weight="bold" fill="#333">미래</text>
+                    <rect x="220" y="35" width="130" height="50" fill="#fff3e0" stroke="#ff9800" stroke-width="2" rx="5"/>
+                    <text x="285" y="60" text-anchor="middle" font-size="12" font-weight="bold" fill="#ff6f00">ASTO 플랫폼</text>
+
+                    <!-- Arrow -->
+                    <line x1="350" y1="60" x2="390" y2="60" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- ATS -->
+                    <rect x="390" y="35" width="180" height="50" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="5"/>
+                    <text x="480" y="55" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">장외거래소 (ATS)</text>
+                    <text x="480" y="75" text-anchor="middle" font-size="10" fill="#558b2f">토큰 거래 시장 형성</text>
+
+                    <!-- Bottom info -->
+                    <text x="50" y="110" font-size="11" fill="#666">🔐 현재: 플랫폼 기반 거래</text>
+                    <text x="50" y="130" font-size="11" fill="#666">📈 미래: 외부 거래소 연동으로 유동성 극대화</text>
+
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#666"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <h3 class="reveal">4️⃣ 궁극적 비전</h3>
+            <div class="diagram-container reveal">
+                <svg width="100%" height="150" viewBox="0 0 600 120">
+                    <text x="300" y="30" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">부동산 시장의 변환</text>
+
+                    <rect x="50" y="45" width="180" height="60" fill="#fce4ec" stroke="#ec407a" stroke-width="2" rx="5"/>
+                    <text x="140" y="75" text-anchor="middle" font-size="12" font-weight="bold" fill="#ad1457">기존</text>
+                    <text x="140" y="95" text-anchor="middle" font-size="11" fill="#c2185b">중개 기반 거래</text>
+
+                    <line x1="230" y1="75" x2="280" y2="75" stroke="#666" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+                    <text x="255" y="65" text-anchor="middle" font-size="11" font-weight="bold" fill="#666">변환</text>
+
+                    <rect x="280" y="45" width="270" height="60" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="5"/>
+                    <text x="415" y="75" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">ASTO</text>
+                    <text x="415" y="95" text-anchor="middle" font-size="11" fill="#558b2f">디지털 자산 시장 (차세대 부동산 금융 인프라)</text>
+
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#666"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <div style="margin-top: 40px;" class="reveal">
+                <p style="text-align: center; color: var(--primary-color); font-weight: 600; font-size: 1.2rem;">🔑 이 PPT 구조의 강점</p>
+                <p style="text-align: center; color: var(--text-sub);">투자 피칭에서 가장 효과적인 흐름</p>
+                <p style="text-align: center; margin-top: 20px; color: var(--text-main); line-height: 2;">
+                    문제 → 해결 아이디어 → 기술 구조 → 수익 모델 → 확장 전략
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>© 2024 ASTO | 블록체인 기반 공유지분형 부동산 플랫폼</p>
+    </footer>
 
     <script>
-        // GSAP 초기화
         gsap.registerPlugin(ScrollTrigger);
 
-        // 요소 나타나는 애니메이션 (Reveal)
+        // Reveal animation
         gsap.utils.toArray(".reveal").forEach((el) => {
             gsap.from(el, {
                 scrollTrigger: {
                     trigger: el,
                     start: "top 85%",
-                    toggleActions: "play none none reverse"
                 },
-                y: 50,
+                y: 30,
                 opacity: 0,
-                duration: 1,
+                duration: 0.7,
                 ease: "power3.out"
             });
         });
 
-        // D3.js 40:60 차트 생성
-        const data = [
-            { name: "자기자본 (Equity)", value: 40, color: "#007aff" },
-            { name: "토큰증권 (STO)", value: 60, color: "#32d74b" }
-        ];
+        // Navigation
+        const navItems = document.querySelectorAll('.nav-item');
+        const sections = document.querySelectorAll('section[id]');
 
-        const width = 500, height = 500, margin = 20;
-        const radius = Math.min(width, height) / 2 - margin;
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    navItems.forEach(item => item.classList.remove('active'));
+                    const activeItem = document.querySelector(`[data-section="${entry.target.id}"]`);
+                    if (activeItem) activeItem.classList.add('active');
+                }
+            });
+        }, { threshold: 0.3, rootMargin: '-60px 0px -66% 0px' });
 
-        const svg = d3.select("#pie-chart")
-            .attr("width", width)
-            .attr("height", height)
-            .append("g")
-            .attr("transform", `translate(${width / 2}, ${height / 2})`);
+        sections.forEach(section => observer.observe(section));
 
-        const pie = d3.pie().value(d => d.value).sort(null);
-        const arc = d3.arc().innerRadius(radius * 0.7).outerRadius(radius);
-
-        const path = svg.selectAll("path")
-            .data(pie(data))
-            .enter()
-            .append("path")
-            .attr("d", arc)
-            .attr("fill", d => d.data.color)
-            .attr("stroke", "#0a0a0c")
-            .style("stroke-width", "5px")
-            .style("opacity", 0.8)
-            .each(function(d) { this._current = d; });
-
-        // 차트 애니메이션
-        ScrollTrigger.create({
-            trigger: "#model",
-            start: "top center",
-            onEnter: () => {
-                path.transition().duration(1500)
-                    .attrTween("d", function(d) {
-                        const interpolate = d3.interpolate({startAngle: 0, endAngle: 0}, d);
-                        return function(t) { return arc(interpolate(t)); };
-                    });
-            }
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const targetSection = document.getElementById(item.getAttribute('data-section'));
+                if (targetSection) targetSection.scrollIntoView({ behavior: 'smooth' });
+            });
         });
 
+        // Simulator Function
+        function formatCurrency(value) {
+            return Math.round(value).toLocaleString('ko-KR');
+        }
+
+        function simulate() {
+            const housePrice = parseFloat(document.getElementById('housePrice').value);
+            const youthRatio = parseFloat(document.getElementById('youthRatio').value);
+            const monthlyFee = parseFloat(document.getElementById('monthlyFee').value);
+            const investAmount = parseFloat(document.getElementById('investAmount').value);
+            const salePrice = parseFloat(document.getElementById('salePrice').value);
+            const years = parseInt(document.getElementById('years').value);
+            const issuanceFeeRate = parseFloat(document.getElementById('issuanceFee').value) / 100;
+            const managementFeeRate = parseFloat(document.getElementById('managementFee').value) / 100;
+
+            // Validation
+            if (!housePrice || youthRatio <= 0 || youthRatio >= 1) {
+                alert('유효한 입력값을 확인해주세요.');
+                return;
+            }
+
+            // Calculate
+            const investorRatio = 1 - youthRatio;
+            const youthEquity = housePrice * youthRatio;
+            const investorEquity = housePrice * investorRatio;
+
+            if (investAmount > investorEquity) {
+                alert('투자 금액이 투자자 지분보다 클 수 없습니다.');
+                return;
+            }
+
+            const investorShare = investAmount / investorEquity;
+            const months = years * 12;
+            const quarters = years * 4;
+
+            const quarterlyDividendTotal = monthlyFee * 3;
+            const investorQuarterlyDividend = quarterlyDividendTotal * investorShare;
+            const investorTotalDividend = investorQuarterlyDividend * quarters;
+
+            const capitalGain = salePrice - housePrice;
+            const youthSaleGain = capitalGain * youthRatio;
+            const investorGainTotal = capitalGain * investorRatio;
+            const investorSaleGain = investorGainTotal * investorShare;
+
+            const investorTotalProfit = investorTotalDividend + investorSaleGain;
+            const investorTotalCash = investAmount + investorTotalProfit;
+
+            const investorTotalReturnRate = investAmount > 0 ? (investorTotalProfit / investAmount) * 100 : 0;
+            const investorAnnualReturnRate = investAmount > 0 && years > 0
+                ? (Math.pow(investorTotalCash / investAmount, 1 / years) - 1) * 100
+                : 0;
+
+            const issuanceFee = investAmount * issuanceFeeRate;
+            const totalUsageFee = monthlyFee * months;
+            const managementFee = totalUsageFee * managementFeeRate;
+            const companyRevenue = issuanceFee + managementFee;
+
+            // Display Results
+            document.getElementById('youthEquity').textContent = formatCurrency(youthEquity) + ' 원';
+            document.getElementById('youthGain').textContent = formatCurrency(youthSaleGain) + ' 원';
+
+            document.getElementById('investDisplay').textContent = formatCurrency(investAmount) + ' 원';
+            document.getElementById('quarterly').textContent = formatCurrency(investorQuarterlyDividend) + ' 원';
+            document.getElementById('totalDividend').textContent = formatCurrency(investorTotalDividend) + ' 원';
+            document.getElementById('investSaleGain').textContent = formatCurrency(investorSaleGain) + ' 원';
+            document.getElementById('totalProfit').textContent = formatCurrency(investorTotalProfit) + ' 원';
+            document.getElementById('annualReturn').textContent = investorAnnualReturnRate.toFixed(2) + '%';
+
+            document.getElementById('issuanceFeeResult').textContent = formatCurrency(issuanceFee) + ' 원';
+            document.getElementById('managementFeeResult').textContent = formatCurrency(managementFee) + ' 원';
+            document.getElementById('companyRevenue').textContent = formatCurrency(companyRevenue) + ' 원';
+
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        // Enter key to simulate
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                simulate();
+            }
+        });
     </script>
+
 </body>
 </html>
